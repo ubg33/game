@@ -118,21 +118,47 @@ function setBar(pct, label) {
   if (dlStatus) dlStatus.textContent = label || '';
 }
 
+
 async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
   var parts = [];
-  for (var i = 0; i < partCount; i++) {
-    setBar(barStart + (i/partCount)*(barEnd-barStart),
-           label+(i+1)+'/'+partCount+' ('+Math.round(barStart+(i/partCount)*(barEnd-barStart))+'%)');
-    var r = await fetch(baseUrl + '.part' + i);
-    if (!r.ok) throw new Error(label+'part'+i+' HTTP '+r.status);
+
+  for (var i = 1; i <= partCount; i++) {
+    var partName = '.part' + String(i).padStart(3, '0');
+
+    setBar(
+      barStart + ((i - 1) / partCount) * (barEnd - barStart),
+      label + partName + ' (' + i + '/' + partCount + ')'
+    );
+
+    var r = await fetch(baseUrl + partName);
+
+    if (!r.ok) {
+      throw new Error(label + partName + ' HTTP ' + r.status);
+    }
+
     parts.push(new Uint8Array(await r.arrayBuffer()));
-    setBar(barStart+((i+1)/partCount)*(barEnd-barStart),
-           label+(i+1)+'/'+partCount+' ('+Math.round(barStart+((i+1)/partCount)*(barEnd-barStart))+'%)');
+
+    setBar(
+      barStart + (i / partCount) * (barEnd - barStart),
+      label + i + '/' + partCount
+    );
   }
-  var total = parts.reduce(function(s,p){return s+p.length;},0);
-  var merged = new Uint8Array(total); var off=0;
-  for(var j=0;j<parts.length;j++){merged.set(parts[j],off);off+=parts[j].length;}
+
+  var total = parts.reduce(function(s, p) {
+    return s + p.length;
+  }, 0);
+
+  var merged = new Uint8Array(total);
+  var off = 0;
+
+  for (var j = 0; j < parts.length; j++) {
+    merged.set(parts[j], off);
+    off += parts[j].length;
+  }
+
   return merged;
+}
+
 }
 function brotliBlobUrl(uint8, filename){
   var blob = new Blob([uint8],{type:'application/octet-stream'});
