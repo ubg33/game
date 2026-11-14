@@ -159,7 +159,7 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
   return merged;
 }
 
-}
+  
 function brotliBlobUrl(uint8, filename){
   var blob = new Blob([uint8],{type:'application/octet-stream'});
   return URL.createObjectURL(blob)+'#'+encodeURIComponent(filename);
