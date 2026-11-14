@@ -234,12 +234,7 @@
       document.getElementById("part-loader").style.display = "none";
       document.getElementById("unity-container").style.display = "";
 
-// SERVICE WORKER
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("ServiceWorker.js")
-    .catch(err => console.warn("Service worker:", err));
-}
-
+// Service worker registration removed: this game does not require ServiceWorker.js.\n
       const canvas = document.querySelector("#unity-canvas");
       const loadingBar = document.querySelector("#unity-loading-bar");
       const progressBarFull = document.querySelector("#unity-progress-bar-full");
