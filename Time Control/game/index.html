@@ -1,266 +1,414 @@
+
 <!doctype html>
 <html lang="en-us">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Unity WebGL Player | Time Control</title>
-    <link rel="shortcut icon" href="favicon.ico" />
-    <link rel="stylesheet" href="style.css" />
-    <style>
-      #part-loader {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: white;
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        font-family: "Comic Sans MS", "Comic Sans", cursive;
-      }
-      #part-loader h1 {
-        font-size: 2em;
-        margin-bottom: 20px;
-      }
-      .part-item {
-        width: 400px;
-        margin: 6px 0;
-        font-size: 1em;
-      }
-      .part-label {
-        margin-bottom: 3px;
-      }
-      .part-bar-bg {
-        width: 100%;
-        height: 18px;
-        background: #ddd;
-        border: 2px solid black;
-      }
-      .part-bar-fill {
-        height: 100%;
-        background: #f5c518;
-        width: 0%;
-        transition: width 0.1s;
-      }
-      .part-status {
-        font-size: 0.85em;
-        color: #555;
-      }
-      #overall-status {
-        margin-top: 20px;
-        font-size: 1.1em;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="part-loader">
-      <h1>Loading...</h1>
-      <div id="parts-list"></div>
-      <div id="overall-status">changing clocks...</div>
-    </div>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Unity WebGL Player | Time Control</title>
+  <base href="https://cdn.jsdelivr.net/gh/ubg423/CGClone@tree/main/Time%20Control/game">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="stylesheet" href="style.css">
 
-    <div id="unity-container" style="display: none">
-      <canvas id="unity-canvas" width="480" height="360" tabindex="-1"></canvas>
-      <div id="unity-loading-bar">
-        <div id="unity-logo"></div>
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
-        </div>
+  <style>
+    #part-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: white;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: "Comic Sans MS", "Comic Sans", cursive;
+    }
+
+    #part-loader h1 {
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+
+    .part-item {
+      width: 400px;
+      margin: 6px 0;
+      font-size: 1em;
+    }
+
+    .part-label {
+      margin-bottom: 3px;
+    }
+
+    .part-bar-bg {
+      width: 100%;
+      height: 18px;
+      background: #ddd;
+      border: 2px solid black;
+    }
+
+    .part-bar-fill {
+      height: 100%;
+      background: #f5c518;
+      width: 0%;
+      transition: width 0.1s;
+    }
+
+    .part-status {
+      font-size: 0.85em;
+      color: #555;
+    }
+
+    #overall-status {
+      margin-top: 20px;
+      font-size: 1.1em;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="part-loader">
+    <h1>Loading...</h1>
+    <div id="parts-list"></div>
+    <div id="overall-status">changing clocks...</div>
+  </div>
+
+  <div id="unity-container" style="display: none">
+    <canvas id="unity-canvas" width="480" height="360" tabindex="-1"></canvas>
+
+    <div id="unity-loading-bar">
+      <div id="unity-logo"></div>
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
       </div>
-      <div id="unity-warning"></div>
     </div>
 
-    <script>
+    <div id="unity-warning"></div>
+  </div>
 
-      const PART_FILES = [
-        { base: "./Build/TCT_0_3_2_CG3.data.br", label: "CheeseRolling.data" },
-        { base: "./Build/TCT_0_3_2_CG3.wasm.br", label: "CheeseRolling.wasm" },
-      ];
+  <script>
+    // FILES TO DOWNLOAD
+    const PART_FILES = [
+      {
+        base: "./Build/TCT_0_3_2_CG3.data.br",
+        label: "CheeseRolling.data"
+      },
+      {
+        base: "./Build/TCT_0_3_2_CG3.wasm.br",
+        label: "CheeseRolling.wasm"
+      }
+    ];
 
-      const assembledBlobs = {};
+    const assembledBlobs = {};
 
-      const partsList = document.getElementById("parts-list");
-      const overallStatus = document.getElementById("overall-status");
+    const partsList = document.getElementById("parts-list");
+    const overallStatus = document.getElementById("overall-status");
 
-      function makePartRow(id, label) {
-        const wrap = document.createElement("div");
-        wrap.className = "part-item";
-        wrap.innerHTML = `
-          <div class="part-label" id="lbl-${id}">${label}</div>
-          <div class="part-bar-bg"><div class="part-bar-fill" id="bar-${id}"></div></div>
-          <div class="part-status" id="status-${id}">waiting...</div>
-        `;
-        partsList.appendChild(wrap);
+    // CREATE PART LOADING ROW
+    function makePartRow(id, label) {
+      const wrap = document.createElement("div");
+      wrap.className = "part-item";
+
+      wrap.innerHTML = `
+        <div class="part-label" id="lbl-${id}">${label}</div>
+        <div class="part-bar-bg">
+          <div class="part-bar-fill" id="bar-${id}"></div>
+        </div>
+        <div class="part-status" id="status-${id}">waiting...</div>
+      `;
+
+      partsList.appendChild(wrap);
+    }
+
+    function setBar(id, pct) {
+      document.getElementById("bar-" + id).style.width = pct + "%";
+    }
+
+    function setStatus(id, text) {
+      document.getElementById("status-" + id).textContent = text;
+    }
+
+    // NUMBER OF PARTS
+    async function countParts(base) {
+      return 3;
+    }
+
+    // DOWNLOAD ONE PART
+    async function fetchPart(url, onProgress) {
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status} for ${url}`);
       }
 
-      function setBar(id, pct) {
-        document.getElementById("bar-" + id).style.width = pct + "%";
-      }
+      const total = parseInt(
+        res.headers.get("Content-Length") || "0",
+        10
+      );
 
-      function setStatus(id, text) {
-        document.getElementById("status-" + id).textContent = text;
-      }
+      const reader = res.body.getReader();
+      const chunks = [];
+      let received = 0;
 
-async function countParts(base) {
-  return 3;
-}
+      while (true) {
+        const { done, value } = await reader.read();
 
-      async function fetchPart(url, onProgress) {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-        const total = parseInt(res.headers.get("Content-Length") || "0", 10);
-        const reader = res.body.getReader();
-        const chunks = [];
-        let received = 0;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          received += value.length;
-          if (total) onProgress(received / total);
-        }
-        return new Blob(chunks);
-      }
+        if (done) break;
 
-      async function loadFile(fileInfo, rowIdPrefix) {
-        const { base, label } = fileInfo;
-        const numParts = await countParts(base);
+        chunks.push(value);
+        received += value.length;
 
-        const rowIds = [];
-        for (let i = 1; i <= numParts; i++) {
-          const rowId = `${rowIdPrefix}_${i}`;
-          rowIds.push(rowId);
-          makePartRow(rowId, `${label} — part ${i} of ${numParts}`);
-        }
-
-        const blobs = [];
-        for (let i = 1; i <= numParts; i++) {
-          const rowId = rowIds[i - 1];
-          const url = `${base}.part${String(i).padStart(3, "0")}`;
-          setStatus(rowId, "downloading...");
-          const blob = await fetchPart(url, (p) => {
-            setBar(rowId, Math.round(p * 100));
-            setStatus(rowId, Math.round(p * 100) + "%");
-          });
-          setBar(rowId, 100);
-          setStatus(rowId, "ready and done");
-          blobs.push(blob);
-        }
-
-       const mimeType = base.includes(".wasm")
-  ? "application/wasm"
-  : "application/octet-stream";
-
-return new Blob(blobs, { type: mimeType });
-      }
-
-      async function loadAllParts() {
-        try {
-          for (let i = 0; i < PART_FILES.length; i++) {
-            overallStatus.textContent = `LOADING ${PART_FILES[i].label}...`;
-            const blob = await loadFile(PART_FILES[i], "file" + i);
-            assembledBlobs[PART_FILES[i].base] = URL.createObjectURL(blob);
-          }
-
-          overallStatus.textContent = "chhese";
-          setTimeout(startUnity, 600);
-        } catch (e) {
-          overallStatus.textContent = "it broke!111! " + e.message;
-          console.error(e);
+        if (total) {
+          onProgress(received / total);
         }
       }
 
-      function startUnity() {
-        document.getElementById("part-loader").style.display = "none";
-        document.getElementById("unity-container").style.display = "";
+      return new Blob(chunks);
+    }
 
-        window.addEventListener("load", function () {
-          if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.register("ServiceWorker.js");
-          }
+    // DOWNLOAD AND JOIN ALL PARTS OF A FILE
+    async function loadFile(fileInfo, rowIdPrefix) {
+      const { base, label } = fileInfo;
+      const numParts = await countParts(base);
+
+      const rowIds = [];
+
+      for (let i = 1; i <= numParts; i++) {
+        const rowId = `${rowIdPrefix}_${i}`;
+
+        rowIds.push(rowId);
+
+        makePartRow(
+          rowId,
+          `${label} — part ${i} of ${numParts}`
+        );
+      }
+
+      const blobs = [];
+
+      for (let i = 1; i <= numParts; i++) {
+        const rowId = rowIds[i - 1];
+
+        const url =
+          `${base}.part${String(i).padStart(3, "0")}`;
+
+        setStatus(rowId, "downloading...");
+
+        const blob = await fetchPart(url, (p) => {
+          const percent = Math.round(p * 100);
+
+          setBar(rowId, percent);
+          setStatus(rowId, percent + "%");
         });
 
-        var container = document.querySelector("#unity-container");
-        var canvas = document.querySelector("#unity-canvas");
-        var loadingBar = document.querySelector("#unity-loading-bar");
-        var progressBarFull = document.querySelector(
-          "#unity-progress-bar-full",
-        );
-        var warningBanner = document.querySelector("#unity-warning");
+        setBar(rowId, 100);
+        setStatus(rowId, "ready and done");
 
-        function unityShowBanner(msg, type) {
-          function updateBannerVisibility() {
-            warningBanner.style.display = warningBanner.children.length
-              ? "block"
-              : "none";
-          }
-          var div = document.createElement("div");
-          div.innerHTML = msg;
-          warningBanner.appendChild(div);
-          if (type == "error") div.style = "background: red; padding: 10px;";
-          else {
-            if (type == "warning")
-              div.style = "background: yellow; padding: 10px;";
-            setTimeout(function () {
-              warningBanner.removeChild(div);
-              updateBannerVisibility();
-            }, 5000);
-          }
-          updateBannerVisibility();
-        }
-
-var buildUrl = "./Build";
-var loaderUrl = buildUrl + "/TCT_0_3_2_CG3.loader.js";
-
-var config = {
-  dataUrl: assembledBlobs["./Build/TCT_0_3_2_CG3.data.br"],
-  frameworkUrl: buildUrl + "/TCT_0_3_2_CG3.framework.js.br",
-  codeUrl: assembledBlobs["./Build/TCT_0_3_2_CG3.wasm.br"],
-
-  streamingAssetsUrl: "StreamingAssets",
-  companyName: "YCP",
-  productName: "Time Control",
-  productVersion: "v1.5.1",
-  showBanner: unityShowBanner
-};
-        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-          var meta = document.createElement("meta");
-          meta.name = "viewport";
-          meta.content =
-            "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
-          document.getElementsByTagName("head")[0].appendChild(meta);
-        }
-
-        loadingBar.style.display = "block";
-
-        var script = document.createElement("script");
-        script.src = loaderUrl;
-        script.onload = () => {
-          console.log("DATA:", config.dataUrl);
-console.log("FRAMEWORK:", config.frameworkUrl);
-console.log("WASM:", config.codeUrl);
-          createUnityInstance(canvas, config, (progress) => {
-            console.log("FULL UNITY CONFIG:", config);
-console.log("DATA URL:", config.dataUrl);
-console.log("WASM URL:", config.codeUrl);
-console.log("FRAMEWORK URL:", config.frameworkUrl);
-console.log("LOADER URL:", loaderUrl);
-            progressBarFull.style.width = 100 * progress + "%";
-          })
-            .then((unityInstance) => {
-              loadingBar.style.display = "none";
-            })
-            .catch((message) => {
-              alert(message);
-            });
-        };
-        document.body.appendChild(script);
+        blobs.push(blob);
       }
 
-      loadAllParts();
-    </script>
-  </body>
+      const mimeType = base.includes(".wasm")
+        ? "application/wasm"
+        : "application/octet-stream";
+
+      return new Blob(blobs, { type: mimeType });
+    }
+
+    // LOAD THE FRAMEWORK FILE
+    async function loadFramework() {
+      overallStatus.textContent = "LOADING FRAMEWORK...";
+
+      const response = await fetch(
+        "./Build/TCT_0_3_2_CG3.framework.js.br"
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Framework failed to load: HTTP " + response.status
+        );
+      }
+
+      const frameworkBlob = await response.blob();
+
+      return URL.createObjectURL(
+        new Blob(
+          [frameworkBlob],
+          { type: "application/javascript" }
+        )
+      );
+    }
+
+    // LOAD ALL SPLIT FILES
+    async function loadAllParts() {
+      try {
+        for (let i = 0; i < PART_FILES.length; i++) {
+          overallStatus.textContent =
+            `LOADING ${PART_FILES[i].label}...`;
+
+          const blob = await loadFile(
+            PART_FILES[i],
+            "file" + i
+          );
+
+          assembledBlobs[PART_FILES[i].base] =
+            URL.createObjectURL(blob);
+        }
+
+        overallStatus.textContent = "chhese";
+
+        await startUnity();
+
+      } catch (e) {
+        overallStatus.textContent =
+          "it broke!111! " + e.message;
+
+        console.error("LOADING ERROR:", e);
+      }
+    }
+
+    // START UNITY
+    async function startUnity() {
+      const buildUrl = "./Build";
+
+      const loaderUrl =
+        buildUrl + "/TCT_0_3_2_CG3.loader.js";
+
+      // LOAD FRAMEWORK BEFORE STARTING UNITY
+      const frameworkBlobUrl = await loadFramework();
+
+      // HIDE PART LOADER
+      document.getElementById("part-loader").style.display =
+        "none";
+
+      document.getElementById("unity-container").style.display =
+        "";
+
+      // SERVICE WORKER
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("ServiceWorker.js")
+          .catch(err => console.warn("Service worker:", err));
+      }
+
+      const container =
+        document.querySelector("#unity-container");
+
+      const canvas =
+        document.querySelector("#unity-canvas");
+
+      const loadingBar =
+        document.querySelector("#unity-loading-bar");
+
+      const progressBarFull =
+        document.querySelector("#unity-progress-bar-full");
+
+      const warningBanner =
+        document.querySelector("#unity-warning");
+
+      // UNITY WARNING BANNER
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display =
+            warningBanner.children.length ? "block" : "none";
+        }
+
+        const div = document.createElement("div");
+        div.innerHTML = msg;
+
+        warningBanner.appendChild(div);
+
+        if (type === "error") {
+          div.style = "background: red; padding: 10px;";
+        } else {
+          if (type === "warning") {
+            div.style = "background: yellow; padding: 10px;";
+          }
+
+          setTimeout(function () {
+            if (warningBanner.contains(div)) {
+              warningBanner.removeChild(div);
+            }
+
+            updateBannerVisibility();
+          }, 5000);
+        }
+
+        updateBannerVisibility();
+      }
+
+      // UNITY CONFIGURATION
+      const config = {
+        dataUrl:
+          assembledBlobs["./Build/TCT_0_3_2_CG3.data.br"],
+
+        frameworkUrl:
+          frameworkBlobUrl,
+
+        codeUrl:
+          assembledBlobs["./Build/TCT_0_3_2_CG3.wasm.br"],
+
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "YCP",
+        productName: "Time Control",
+        productVersion: "v1.5.1",
+        showBanner: unityShowBanner
+      };
+
+      // MOBILE VIEWPORT
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        const meta = document.createElement("meta");
+
+        meta.name = "viewport";
+
+        meta.content =
+          "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
+
+        document.getElementsByTagName("head")[0]
+          .appendChild(meta);
+      }
+
+      loadingBar.style.display = "block";
+
+      // LOAD UNITY LOADER SCRIPT
+      const script = document.createElement("script");
+
+      script.src = loaderUrl;
+
+      script.onload = () => {
+        console.log("DATA:", config.dataUrl);
+        console.log("FRAMEWORK:", config.frameworkUrl);
+        console.log("WASM:", config.codeUrl);
+        console.log("LOADER:", loaderUrl);
+
+        createUnityInstance(
+          canvas,
+          config,
+          (progress) => {
+            progressBarFull.style.width =
+              100 * progress + "%";
+          }
+        )
+          .then((unityInstance) => {
+            loadingBar.style.display = "none";
+
+            console.log("UNITY LOADED SUCCESSFULLY!");
+          })
+          .catch((message) => {
+            console.error("UNITY ERROR:", message);
+            alert(message);
+          });
+      };
+
+      script.onerror = () => {
+        throw new Error("Unity loader script failed to load.");
+      };
+
+      document.body.appendChild(script);
+    }
+
+    // BEGIN
+    loadAllParts();
+
+  </script>
+</body>
 </html>
