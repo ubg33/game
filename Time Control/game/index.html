@@ -1,342 +1,239 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en-us">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <title>Unity WebGL Player | Time Control</title>
-  <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css">
-
-  <style>
-    #part-loader {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: white;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-family: "Comic Sans MS", "Comic Sans", cursive;
-    }
-
-    #part-loader h1 {
-      font-size: 2em;
-      margin-bottom: 20px;
-    }
-
-    .part-item {
-      width: 400px;
-      max-width: calc(100vw - 32px);
-      margin: 6px 0;
-      font-size: 1em;
-    }
-
-    .part-label { margin-bottom: 3px; }
-
-    .part-bar-bg {
-      width: 100%;
-      height: 18px;
-      background: #ddd;
-      border: 2px solid black;
-    }
-
-    .part-bar-fill {
-      height: 100%;
-      background: #f5c518;
-      width: 0%;
-      transition: width 0.1s;
-    }
-
-    .part-status {
-      font-size: 0.85em;
-      color: #555;
-    }
-
-    #overall-status {
-      margin-top: 20px;
-      font-size: 1.1em;
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>Unity WebGL Player | Drift No Limit</title>
+<link rel="shortcut icon" href="TemplateData/favicon.ico"/>
+<link rel="stylesheet" href="TemplateData/style.css"/>
+<!-- howler.js — CDN'den (Web Audio library, oyunun ihtiyacı) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
 </head>
-
 <body>
-  <div id="part-loader">
-    <h1>Loading...</h1>
-    <div id="parts-list"></div>
-    <div id="overall-status">changing clocks...</div>
-  </div>
-
-  <div id="unity-container" style="display: none">
-    <canvas id="unity-canvas" width="480" height="360" tabindex="-1"></canvas>
-
-    <div id="unity-loading-bar">
-      <div id="unity-logo"></div>
-      <div id="unity-progress-bar-empty">
-        <div id="unity-progress-bar-full"></div>
-      </div>
+<div id="unity-container" style="position:absolute;width:100%;height:100%;left:0;top:0;">
+  <canvas id="unity-canvas" style="position:absolute;width:100%;height:100%;"></canvas>
+  <div id="unity-loading-bar">
+    <div id="unity-logo"></div>
+    <div id="unity-progress-bar-empty">
+      <div id="unity-progress-bar-full" style="width:0%;"></div>
     </div>
-
-    <div id="unity-warning"></div>
+    <div id="dl-status" style="text-align:center;font-size:12px;color:rgba(255,255,255,.7);
+         font-family:sans-serif;margin-top:6px;letter-spacing:.4px;">Hazırlanıyor...</div>
   </div>
+  <div id="unity-warning"></div>
+</div>
 
-  <script>
-    // FILES TO DOWNLOAD
-    const PART_FILES = [
-      {
-        base: "./Build/TCT_0_3_2_CG3.data.br",
-        label: "CheeseRolling.data"
+<!-- YaGames STUB -->
+<script>
+window.YaGames = { init: function() {
+  var sdk = {
+    environment:{ app:{id:'0'}, i18n:{lang:'en',tld:'com'}, browser:{lang:'en'}, payload:null },
+    deviceInfo:{ type:'desktop',
+      isMobile:function(){return false;}, isDesktop:function(){return true;},
+      isTablet:function(){return false;}, isTV:function(){return false;}
+    },
+    adv:{
+      showFullscreenAdv:function(o){
+        if(o&&o.callbacks&&o.callbacks.onClose) o.callbacks.onClose(false);
       },
-      {
-        base: "./Build/TCT_0_3_2_CG3.wasm.br",
-        label: "CheeseRolling.wasm"
-      }
-    ];
-
-    const assembledBlobs = {};
-
-    const partsList = document.getElementById("parts-list");
-    const overallStatus = document.getElementById("overall-status");
-
-    function makePartRow(id, label) {
-      const wrap = document.createElement("div");
-      wrap.className = "part-item";
-      wrap.innerHTML = `
-        <div class="part-label" id="lbl-${id}">${label}</div>
-        <div class="part-bar-bg">
-          <div class="part-bar-fill" id="bar-${id}"></div>
-        </div>
-        <div class="part-status" id="status-${id}">waiting...</div>
-      `;
-      partsList.appendChild(wrap);
+      showRewardedVideo:function(o){
+        if(!o||!o.callbacks) return;
+        if(o.callbacks.onOpen)     o.callbacks.onOpen();
+        if(o.callbacks.onRewarded) o.callbacks.onRewarded();
+        if(o.callbacks.onClose)    o.callbacks.onClose();
+      },
+      showBannerAdv:function(){}, hideBannerAdv:function(){},
+      getBannerAdvStatus:function(){ return Promise.resolve({stickyAdvIsShowing:false}); }
+    },
+    auth:{ openAuthDialog:function(){ return Promise.resolve(); } },
+    feedback:{
+      canReview:function(){ return Promise.resolve({value:false,reason:''}); },
+      requestReview:function(){ return Promise.resolve({feedbackSent:false}); }
+    },
+    shortcut:{
+      canShowPrompt:function(){ return Promise.resolve({canShow:false}); },
+      showPrompt:function(){ return Promise.resolve({outcome:'rejected'}); }
+    },
+    getPayments:function(){ return Promise.reject('no payments'); },
+    getPlayer:function(){ return Promise.resolve({
+      isAuthorized:function(){return false;}, getMode:function(){return 'lite';},
+      getName:function(){return '';}, getUniqueID:function(){return '0';},
+      getPhoto:function(){return '';}, getPayingStatus:function(){return 'unknown';},
+      setData:function(){return Promise.resolve();}, getData:function(){return Promise.resolve({});}
+    });},
+    serverTime:function(){ return Promise.resolve(Date.now()); },
+    on:function(){},
+    features:{
+      LoadingAPI:{ready:function(){}},
+      GameplayAPI:{start:function(){},stop:function(){}}
     }
+  };
+  return Promise.resolve(sdk);
+}};
+</script>
 
-    function setBar(id, pct) {
-      document.getElementById("bar-" + id).style.width = pct + "%";
-    }
+<!-- sdk.js stub yükle -->
+<script>
+(function(){ var s=document.createElement('script'); s.src='/sdk.js';
+  s.onerror=function(){console.warn('[Stub] sdk.js yuklenemedi');}; document.head.appendChild(s); })();
 
-    function setStatus(id, text) {
-      document.getElementById("status-" + id).textContent = text;
-    }
+(function(){
+  function u(){
+    if(window._au) return; window._au=true;
+    try{var c=new(window.AudioContext||window.webkitAudioContext)();
+      var b=c.createBuffer(1,1,22050);var s=c.createBufferSource();
+      s.buffer=b;s.connect(c.destination);s.start(0);c.resume&&c.resume();
+    }catch(e){}
+    ['touchstart','pointerdown','click'].forEach(function(t){document.removeEventListener(t,u);});
+  }
+  ['touchstart','pointerdown','click'].forEach(function(t){document.addEventListener(t,u,{passive:true});});
+})();
+</script>
 
-    // Each of the DATA and WASM files has three parts.
-    async function countParts(base) {
-      return 3;
-    }
+<script>
+/* ================================================================
+   CDN — değiştir
+   ================================================================ */
+var CDN      = "./Build";  /* <-- degistir */
+var DATA_FILE = "TCT_0_3_2_CG32.data.br";
+var WASM_FILE = "TCT_0_3_2_CG3.wasm.br";
+var DATA_PARTS = 3;  /* 53.1MB / 8MB = 7 part */
+var WASM_PARTS = 3;  /* 37.0MB / 8MB = 5 part */
 
-    async function fetchPart(url, onProgress) {
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status} for ${url}`);
-      }
+var sources           = {};
+var sourcesPlayOneShot= {};
+var sdk;
+var MyGameInstance    = null;
+var _dataBlobUrl      = null;
+var _wasmBlobUrl      = null;
+var _partsReady       = false;
 
-      const total = parseInt(res.headers.get("Content-Length") || "0", 10);
-      if (!res.body) {
-        throw new Error("Response has no readable body: " + url);
-      }
+var loadingBar    = document.querySelector("#unity-loading-bar");
+var progressFull  = document.querySelector("#unity-progress-bar-full");
+var dlStatus      = document.querySelector("#dl-status");
 
-      const reader = res.body.getReader();
-      const chunks = [];
-      let received = 0;
+loadingBar.style.display = "block";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+/* DATA 0-50%, WASM 50-90%, Unity 90-100% */
+function setBar(pct, label) {
+  progressFull.style.width = pct.toFixed(1) + '%';
+  if (dlStatus) dlStatus.textContent = label || '';
+}
 
-        chunks.push(value);
-        received += value.length;
-        if (total) onProgress(received / total);
-      }
+async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
+  var parts = [];
+  for (var i = 0; i < partCount; i++) {
+    setBar(barStart + (i/partCount)*(barEnd-barStart),
+           label+(i+1)+'/'+partCount+' ('+Math.round(barStart+(i/partCount)*(barEnd-barStart))+'%)');
+    var r = await fetch(baseUrl + '.part' + i);
+    if (!r.ok) throw new Error(label+'part'+i+' HTTP '+r.status);
+    parts.push(new Uint8Array(await r.arrayBuffer()));
+    setBar(barStart+((i+1)/partCount)*(barEnd-barStart),
+           label+(i+1)+'/'+partCount+' ('+Math.round(barStart+((i+1)/partCount)*(barEnd-barStart))+'%)');
+  }
+  var total = parts.reduce(function(s,p){return s+p.length;},0);
+  var merged = new Uint8Array(total); var off=0;
+  for(var j=0;j<parts.length;j++){merged.set(parts[j],off);off+=parts[j].length;}
+  return merged;
+}
+function brotliBlobUrl(uint8, filename){
+  var blob = new Blob([uint8],{type:'application/octet-stream'});
+  return URL.createObjectURL(blob)+'#'+encodeURIComponent(filename);
+}
 
-      return new Blob(chunks);
-    }
+/* Part'ları önceden indir */
+async function preloadParts() {
+  try {
+    setBar(0,'Data indiriliyor...');
+    var dataBytes = await fetchParts(CDN+'/'+DATA_FILE, DATA_PARTS, 0,  50, 'Data indiriliyor... ');
+    _dataBlobUrl  = brotliBlobUrl(dataBytes, DATA_FILE);
 
-    // DOWNLOAD AND JOIN ALL PARTS OF ONE FILE IN ORDER.
-    async function loadFile(fileInfo, rowIdPrefix) {
-      const { base, label } = fileInfo;
-      const numParts = await countParts(base);
-      const rowIds = [];
+    var wasmBytes = await fetchParts(CDN+'/'+WASM_FILE, WASM_PARTS, 50, 90, 'WASM indiriliyor... ');
+    _wasmBlobUrl  = brotliBlobUrl(wasmBytes, WASM_FILE);
 
-      for (let i = 1; i <= numParts; i++) {
-        const rowId = `${rowIdPrefix}_${i}`;
-        rowIds.push(rowId);
-        makePartRow(rowId, `${label} — part ${i} of ${numParts}`);
-      }
+    setBar(90, 'Oyun başlatılıyor...');
+    _partsReady = true;
+    console.log('[Drift] Parts ready, waiting for ad close...');
+  } catch(e) {
+    dlStatus.textContent = 'İndirme hatası: ' + e.message;
+    console.error(e);
+  }
+}
 
-      const blobs = [];
+/* SDK init + reklam — reklam kapanınca Unity başlar */
+YaGames.init().then(function(ysdk) {
+  console.log('Yandex SDK initialized');
+  window.ysdk = ysdk;
+  sdk = ysdk;
 
-      for (let i = 1; i <= numParts; i++) {
-        const rowId = rowIds[i - 1];
-        const url = `${base}.part${String(i).padStart(3, "0")}`;
+  sdk.adv.showFullscreenAdv({callbacks:{
+    onClose:   function(){ closeAdFunction(); },
+    onError:   function(){ closeAdFunction(); },
+    onOffline: function(){ closeAdFunction(); }
+  }});
+});
 
-        setStatus(rowId, "downloading...");
+/* Paralel: SDK init + reklam + part indirme aynı anda */
+preloadParts();
 
-        const blob = await fetchPart(url, (p) => {
-          const percent = Math.round(p * 100);
-          setBar(rowId, percent);
-          setStatus(rowId, percent + "%");
-        });
+function closeAdFunction() {
+  console.log('[Drift] Ad closed');
+  if (_partsReady) {
+    initializeUnity();
+  } else {
+    /* Parts henüz bitmemiş, bitince Unity başlatılacak */
+    var iv = setInterval(function(){
+      if (_partsReady) { clearInterval(iv); initializeUnity(); }
+    }, 200);
+  }
+}
 
-        setBar(rowId, 100);
-        setStatus(rowId, "ready and done");
-        blobs.push(blob);
-      }
+function initializeUnity() {
+  var container     = document.querySelector("#unity-container");
+  var canvas        = document.querySelector("#unity-canvas");
+  var warningBanner = document.querySelector("#unity-warning");
 
-      const mimeType = base.includes(".wasm")
-        ? "application/wasm"
-        : "application/octet-stream";
+  function unityShowBanner(msg, type) {
+    function upd(){ warningBanner.style.display = warningBanner.children.length?'block':'none'; }
+    var div=document.createElement('div'); div.innerHTML=msg; warningBanner.appendChild(div);
+    if(type==='error') div.style='background:red;padding:10px;';
+    else { if(type==='warning') div.style='background:yellow;padding:10px;';
+      setTimeout(function(){ warningBanner.removeChild(div); upd(); },5000); }
+    upd();
+  }
 
-      return new Blob(blobs, { type: mimeType });
-    }
+  var config = {
+    dataUrl:            _dataBlobUrl,
+    frameworkUrl:       CDN + "/TCT_0_3_2_CG3.framework.js.br",
+    codeUrl:            _wasmBlobUrl,
+    streamingAssetsUrl: "StreamingAssets",
+    companyName:        "Drift No Limit",
+    productName:        "Drift No Limit",
+    productVersion:     "90",
+    showBanner:         unityShowBanner
+  };
 
-    // FETCH THE FRAMEWORK AND GIVE UNITY A BLOB URL.
-    async function loadFramework() {
-      overallStatus.textContent = "LOADING FRAMEWORK...";
+  if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    var meta=document.createElement('meta');
+    meta.name='viewport';
+    meta.content='width=device-width,height=device-height,initial-scale=1.0,user-scalable=no,shrink-to-fit=yes';
+    document.getElementsByTagName('head')[0].appendChild(meta);
+    container.className="unity-mobile";
+  }
+  canvas.style.width="100%"; canvas.style.height="100%";
 
-      const response = await fetch("./Build/TCT_0_3_2_CG3.framework.js.br");
-      if (!response.ok) {
-        throw new Error("Framework failed to load: HTTP " + response.status);
-      }
-
-      const frameworkBlob = await response.blob();
-      return URL.createObjectURL(
-        new Blob([frameworkBlob], { type: "application/javascript" })
-      );
-    }
-
-    async function loadAllParts() {
-      try {
-        for (let i = 0; i < PART_FILES.length; i++) {
-          overallStatus.textContent = `LOADING ${PART_FILES[i].label}...`;
-
-          const blob = await loadFile(PART_FILES[i], "file" + i);
-          assembledBlobs[PART_FILES[i].base] = URL.createObjectURL(blob);
-        }
-
-        overallStatus.textContent = "Preparing Unity...";
-        await startUnity();
-      } catch (e) {
-        overallStatus.textContent = "it broke!111! " + e.message;
-        console.error("LOADING ERROR:", e);
-      }
-    }
-
-    async function startUnity() {
-      const buildUrl = "./Build";
-      const loaderUrl = buildUrl + "/TCT_0_3_2_CG3.loader.js";
-
-      // Load the framework before creating the Unity instance.
-      const frameworkBlobUrl = await loadFramework();
-
-      document.getElementById("part-loader").style.display = "none";
-      document.getElementById("unity-container").style.display = "";
-
-// Service worker registration removed: this game does not require ServiceWorker.js.\n
-      const canvas = document.querySelector("#unity-canvas");
-      const loadingBar = document.querySelector("#unity-loading-bar");
-      const progressBarFull = document.querySelector("#unity-progress-bar-full");
-      const warningBanner = document.querySelector("#unity-warning");
-
-      function unityShowBanner(msg, type) {
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? "block" : "none";
-        }
-
-        const div = document.createElement("div");
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-
-        if (type === "error") {
-          div.style = "background: red; padding: 10px;";
-        } else {
-          if (type === "warning") {
-            div.style = "background: yellow; padding: 10px;";
-          }
-          setTimeout(function () {
-            if (warningBanner.contains(div)) warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
-        }
-        updateBannerVisibility();
-      }
-
-      const config = {
-        dataUrl: assembledBlobs["./Build/TCT_0_3_2_CG3.data.br"],
-        frameworkUrl: frameworkBlobUrl,
-        codeUrl: assembledBlobs["./Build/TCT_0_3_2_CG3.wasm.br"],
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "YCP",
-        productName: "Time Control",
-        productVersion: "v1.5.1",
-        showBanner: unityShowBanner
-      };
-
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        const meta = document.createElement("meta");
-        meta.name = "viewport";
-        meta.content = "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
-        document.head.appendChild(meta);
-      }
-
-      loadingBar.style.display = "block";
-
-      // Create the loader script.
-      const script = document.createElement("script");
-      script.src = loaderUrl;
-
-      script.onload = () => {
-        console.log("UNITY LOADER SCRIPT LOADED");
-
-        let unityProgress = 0;
-        let unityFinished = false;
-
-        const stuckTimer = setTimeout(() => {
-          if (!unityFinished) {
-            console.error("UNITY STUCK AT:", Math.round(unityProgress * 100) + "%");
-          }
-        }, 30000);
-
-        console.log("UNITY CONFIG:", config);
-
-        createUnityInstance(
-          canvas,
-          config,
-          (progress) => {
-            unityProgress = progress;
-            const percent = Math.round(progress * 100);
-            console.log("UNITY LOADING:", percent + "%");
-            progressBarFull.style.width = percent + "%";
-          }
-        )
-          .then((unityInstance) => {
-            unityFinished = true;
-            clearTimeout(stuckTimer);
-            loadingBar.style.display = "none";
-            console.log("UNITY LOADED SUCCESSFULLY!", unityInstance);
-          })
-          .catch((error) => {
-            unityFinished = true;
-            clearTimeout(stuckTimer);
-            console.error("UNITY INITIALIZATION FAILED:", error);
-            alert("Unity initialization failed: " + (error && error.message ? error.message : error));
-          });
-      };
-
-      script.onerror = () => {
-        console.error("FAILED TO LOAD UNITY LOADER:", script.src);
-        overallStatus.textContent = "Unity loader failed to load.";
-      };
-
-      // IMPORTANT: Append the script OUTSIDE its onload callback.
-      // This starts loading loader.js and allows script.onload to fire.
-      document.body.appendChild(script);
-    }
-
-    // BEGIN
-    loadAllParts();
-  </script>
+  var script=document.createElement("script");
+  script.src=CDN+"/TCT_0_3_2_CG3.loader.js";
+  script.onload=function(){
+    createUnityInstance(canvas, config, function(progress){
+      setBar(90+progress*10, progress<1?'Oyun yükleniyor... '+Math.round(90+progress*10)+'%':'');
+    }).then(function(inst){
+      MyGameInstance = inst;
+      loadingBar.style.display = "none";
+    }).catch(function(msg){ alert(msg); });
+  };
+  document.body.appendChild(script);
+}
+</script>
 </body>
 </html>
