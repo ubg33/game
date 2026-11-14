@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en-us">
 <head>
@@ -31,13 +30,12 @@
 
     .part-item {
       width: 400px;
+      max-width: calc(100vw - 32px);
       margin: 6px 0;
       font-size: 1em;
     }
 
-    .part-label {
-      margin-bottom: 3px;
-    }
+    .part-label { margin-bottom: 3px; }
 
     .part-bar-bg {
       width: 100%;
@@ -66,7 +64,6 @@
 </head>
 
 <body>
-
   <div id="part-loader">
     <h1>Loading...</h1>
     <div id="parts-list"></div>
@@ -104,11 +101,9 @@
     const partsList = document.getElementById("parts-list");
     const overallStatus = document.getElementById("overall-status");
 
-    // CREATE PART LOADING ROW
     function makePartRow(id, label) {
       const wrap = document.createElement("div");
       wrap.className = "part-item";
-
       wrap.innerHTML = `
         <div class="part-label" id="lbl-${id}">${label}</div>
         <div class="part-bar-bg">
@@ -116,7 +111,6 @@
         </div>
         <div class="part-status" id="status-${id}">waiting...</div>
       `;
-
       partsList.appendChild(wrap);
     }
 
@@ -128,23 +122,21 @@
       document.getElementById("status-" + id).textContent = text;
     }
 
-    // NUMBER OF PARTS
+    // Each of the DATA and WASM files has three parts.
     async function countParts(base) {
       return 3;
     }
 
-    // DOWNLOAD ONE PART
     async function fetchPart(url, onProgress) {
       const res = await fetch(url);
-
       if (!res.ok) {
         throw new Error(`HTTP ${res.status} for ${url}`);
       }
 
-      const total = parseInt(
-        res.headers.get("Content-Length") || "0",
-        10
-      );
+      const total = parseInt(res.headers.get("Content-Length") || "0", 10);
+      if (!res.body) {
+        throw new Error("Response has no readable body: " + url);
+      }
 
       const reader = res.body.getReader();
       const chunks = [];
@@ -152,58 +144,44 @@
 
       while (true) {
         const { done, value } = await reader.read();
-
         if (done) break;
 
         chunks.push(value);
         received += value.length;
-
-        if (total) {
-          onProgress(received / total);
-        }
+        if (total) onProgress(received / total);
       }
 
       return new Blob(chunks);
     }
 
-    // DOWNLOAD AND JOIN ALL PARTS OF A FILE
+    // DOWNLOAD AND JOIN ALL PARTS OF ONE FILE IN ORDER.
     async function loadFile(fileInfo, rowIdPrefix) {
       const { base, label } = fileInfo;
       const numParts = await countParts(base);
-
       const rowIds = [];
 
       for (let i = 1; i <= numParts; i++) {
         const rowId = `${rowIdPrefix}_${i}`;
-
         rowIds.push(rowId);
-
-        makePartRow(
-          rowId,
-          `${label} — part ${i} of ${numParts}`
-        );
+        makePartRow(rowId, `${label} — part ${i} of ${numParts}`);
       }
 
       const blobs = [];
 
       for (let i = 1; i <= numParts; i++) {
         const rowId = rowIds[i - 1];
-
-        const url =
-          `${base}.part${String(i).padStart(3, "0")}`;
+        const url = `${base}.part${String(i).padStart(3, "0")}`;
 
         setStatus(rowId, "downloading...");
 
         const blob = await fetchPart(url, (p) => {
           const percent = Math.round(p * 100);
-
           setBar(rowId, percent);
           setStatus(rowId, percent + "%");
         });
 
         setBar(rowId, 100);
         setStatus(rowId, "ready and done");
-
         blobs.push(blob);
       }
 
@@ -214,106 +192,65 @@
       return new Blob(blobs, { type: mimeType });
     }
 
-    // LOAD THE FRAMEWORK FILE
+    // FETCH THE FRAMEWORK AND GIVE UNITY A BLOB URL.
     async function loadFramework() {
       overallStatus.textContent = "LOADING FRAMEWORK...";
 
-      const response = await fetch(
-        "./Build/TCT_0_3_2_CG3.framework.js.br"
-      );
-
+      const response = await fetch("./Build/TCT_0_3_2_CG3.framework.js.br");
       if (!response.ok) {
-        throw new Error(
-          "Framework failed to load: HTTP " + response.status
-        );
+        throw new Error("Framework failed to load: HTTP " + response.status);
       }
 
       const frameworkBlob = await response.blob();
-
       return URL.createObjectURL(
-        new Blob(
-          [frameworkBlob],
-          { type: "application/javascript" }
-        )
+        new Blob([frameworkBlob], { type: "application/javascript" })
       );
     }
 
-    // LOAD ALL SPLIT FILES
     async function loadAllParts() {
       try {
         for (let i = 0; i < PART_FILES.length; i++) {
-          overallStatus.textContent =
-            `LOADING ${PART_FILES[i].label}...`;
+          overallStatus.textContent = `LOADING ${PART_FILES[i].label}...`;
 
-          const blob = await loadFile(
-            PART_FILES[i],
-            "file" + i
-          );
-
-          assembledBlobs[PART_FILES[i].base] =
-            URL.createObjectURL(blob);
+          const blob = await loadFile(PART_FILES[i], "file" + i);
+          assembledBlobs[PART_FILES[i].base] = URL.createObjectURL(blob);
         }
 
-        overallStatus.textContent = "chhese";
-
+        overallStatus.textContent = "Preparing Unity...";
         await startUnity();
-
       } catch (e) {
-        overallStatus.textContent =
-          "it broke!111! " + e.message;
-
+        overallStatus.textContent = "it broke!111! " + e.message;
         console.error("LOADING ERROR:", e);
       }
     }
 
-    // START UNITY
     async function startUnity() {
       const buildUrl = "./Build";
+      const loaderUrl = buildUrl + "/TCT_0_3_2_CG3.loader.js";
 
-      const loaderUrl =
-        buildUrl + "/TCT_0_3_2_CG3.loader.js";
-
-      // LOAD FRAMEWORK BEFORE STARTING UNITY
+      // Load the framework before creating the Unity instance.
       const frameworkBlobUrl = await loadFramework();
 
-      // HIDE PART LOADER
-      document.getElementById("part-loader").style.display =
-        "none";
+      document.getElementById("part-loader").style.display = "none";
+      document.getElementById("unity-container").style.display = "";
 
-      document.getElementById("unity-container").style.display =
-        "";
-
-      // SERVICE WORKER
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("ServiceWorker.js")
           .catch(err => console.warn("Service worker:", err));
       }
 
-      const container =
-        document.querySelector("#unity-container");
+      const canvas = document.querySelector("#unity-canvas");
+      const loadingBar = document.querySelector("#unity-loading-bar");
+      const progressBarFull = document.querySelector("#unity-progress-bar-full");
+      const warningBanner = document.querySelector("#unity-warning");
 
-      const canvas =
-        document.querySelector("#unity-canvas");
-
-      const loadingBar =
-        document.querySelector("#unity-loading-bar");
-
-      const progressBarFull =
-        document.querySelector("#unity-progress-bar-full");
-
-      const warningBanner =
-        document.querySelector("#unity-warning");
-
-      // UNITY WARNING BANNER
       function unityShowBanner(msg, type) {
         function updateBannerVisibility() {
-          warningBanner.style.display =
-            warningBanner.children.length ? "block" : "none";
+          warningBanner.style.display = warningBanner.children.length ? "block" : "none";
         }
 
         const div = document.createElement("div");
         div.innerHTML = msg;
-
         warningBanner.appendChild(div);
 
         if (type === "error") {
@@ -322,30 +259,18 @@
           if (type === "warning") {
             div.style = "background: yellow; padding: 10px;";
           }
-
           setTimeout(function () {
-            if (warningBanner.contains(div)) {
-              warningBanner.removeChild(div);
-            }
-
+            if (warningBanner.contains(div)) warningBanner.removeChild(div);
             updateBannerVisibility();
           }, 5000);
         }
-
         updateBannerVisibility();
       }
 
-      // UNITY CONFIGURATION
       const config = {
-        dataUrl:
-          assembledBlobs["./Build/TCT_0_3_2_CG3.data.br"],
-
-        frameworkUrl:
-          frameworkBlobUrl,
-
-        codeUrl:
-          assembledBlobs["./Build/TCT_0_3_2_CG3.wasm.br"],
-
+        dataUrl: assembledBlobs["./Build/TCT_0_3_2_CG3.data.br"],
+        frameworkUrl: frameworkBlobUrl,
+        codeUrl: assembledBlobs["./Build/TCT_0_3_2_CG3.wasm.br"],
         streamingAssetsUrl: "StreamingAssets",
         companyName: "YCP",
         productName: "Time Control",
@@ -353,61 +278,69 @@
         showBanner: unityShowBanner
       };
 
-      // MOBILE VIEWPORT
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         const meta = document.createElement("meta");
-
         meta.name = "viewport";
-
-        meta.content =
-          "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
-
-        document.getElementsByTagName("head")[0]
-          .appendChild(meta);
+        meta.content = "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
+        document.head.appendChild(meta);
       }
 
       loadingBar.style.display = "block";
 
-      // LOAD UNITY LOADER SCRIPT
+      // Create the loader script.
       const script = document.createElement("script");
-
       script.src = loaderUrl;
 
       script.onload = () => {
-        console.log("DATA:", config.dataUrl);
-        console.log("FRAMEWORK:", config.frameworkUrl);
-        console.log("WASM:", config.codeUrl);
-        console.log("LOADER:", loaderUrl);
+        console.log("UNITY LOADER SCRIPT LOADED");
+
+        let unityProgress = 0;
+        let unityFinished = false;
+
+        const stuckTimer = setTimeout(() => {
+          if (!unityFinished) {
+            console.error("UNITY STUCK AT:", Math.round(unityProgress * 100) + "%");
+          }
+        }, 30000);
+
+        console.log("UNITY CONFIG:", config);
 
         createUnityInstance(
           canvas,
           config,
           (progress) => {
-            progressBarFull.style.width =
-              100 * progress + "%";
+            unityProgress = progress;
+            const percent = Math.round(progress * 100);
+            console.log("UNITY LOADING:", percent + "%");
+            progressBarFull.style.width = percent + "%";
           }
         )
           .then((unityInstance) => {
+            unityFinished = true;
+            clearTimeout(stuckTimer);
             loadingBar.style.display = "none";
-
-            console.log("UNITY LOADED SUCCESSFULLY!");
+            console.log("UNITY LOADED SUCCESSFULLY!", unityInstance);
           })
-          .catch((message) => {
-            console.error("UNITY ERROR:", message);
-            alert(message);
+          .catch((error) => {
+            unityFinished = true;
+            clearTimeout(stuckTimer);
+            console.error("UNITY INITIALIZATION FAILED:", error);
+            alert("Unity initialization failed: " + (error && error.message ? error.message : error));
           });
       };
 
       script.onerror = () => {
-        throw new Error("Unity loader script failed to load.");
+        console.error("FAILED TO LOAD UNITY LOADER:", script.src);
+        overallStatus.textContent = "Unity loader failed to load.";
       };
 
+      // IMPORTANT: Append the script OUTSIDE its onload callback.
+      // This starts loading loader.js and allows script.onload to fire.
       document.body.appendChild(script);
     }
 
     // BEGIN
     loadAllParts();
-
   </script>
 </body>
 </html>
