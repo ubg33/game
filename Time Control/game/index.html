@@ -234,10 +234,11 @@
       document.getElementById("part-loader").style.display = "none";
       document.getElementById("unity-container").style.display = "";
 
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("ServiceWorker.js")
-          .catch(err => console.warn("Service worker:", err));
-      }
+// SERVICE WORKER
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("ServiceWorker.js")
+    .catch(err => console.warn("Service worker:", err));
+}
 
       const canvas = document.querySelector("#unity-canvas");
       const loadingBar = document.querySelector("#unity-loading-bar");
