@@ -427,13 +427,51 @@ function initializeUnity() {
 
   script.src = CDN + "/TCT_0_3_2_CG3.loader.js";
 
-  script.onload = function() {
-    console.log("[Drift] Unity loader downloaded!");
 
-    try {
-      if (typeof createUnityInstance !== "function") {
-        throw new Error("createUnityInstance is missing!");
+script.onload = function() {
+  console.log("[Drift] Unity loader downloaded!");
+
+  try {
+    if (typeof createUnityInstance !== "function") {
+      throw new Error("createUnityInstance is missing!");
+    }
+
+    createUnityInstance(
+      canvas,
+      config,
+      function(progress) {
+        console.log(
+          "[Drift] Unity loading progress:",
+          Math.round(progress * 100) + "%"
+        );
+
+        setBar(
+          90 + progress * 10,
+          progress < 1
+            ? "Game loading... " +
+              Math.round(90 + progress * 10) + "%"
+            : ""
+        );
       }
+    )
+    .then(function(inst) {
+      MyGameInstance = inst;
+      loadingBar.style.display = "none";
+
+      console.log("[Drift] GAME STARTED!");
+
+    })
+    .catch(function(error) {
+      console.error("[Drift] Unity initialization failed:", error);
+      dlStatus.textContent = "Unity error: " + error;
+    });
+
+  } catch (error) {
+    console.error("[Drift] Unity loader error:", error);
+    dlStatus.textContent = error.message;
+  }
+};
+
 
       createUnityInstance(
         canvas,
