@@ -126,10 +126,44 @@ window._partsReady = false;
 window._unityStarted = false;
 var _frameworkBlobUrl = null;
   
+
 async function fetchBrotliFile(url, mimeType, filename) {
+  console.log("[Drift] Downloading framework...");
+
   var response = await fetch(url, {
     cache: "no-store"
   });
+
+  if (!response.ok) {
+    throw new Error("Framework HTTP " + response.status);
+  }
+
+  // Browser already handles HTTP gzip decompression.
+  var bytes = await response.arrayBuffer();
+
+  console.log("[Drift] Framework size:", bytes.byteLength);
+
+  var preview = new TextDecoder().decode(
+    bytes.slice(0, 30)
+  );
+
+  console.log("[Drift] Framework preview:", preview);
+
+  if (!preview.startsWith("function unityFramework")) {
+    throw new Error("Framework does not look like JavaScript!");
+  }
+
+  var blob = new Blob([bytes], {
+    type: "application/javascript"
+  });
+
+  var blobUrl = URL.createObjectURL(blob);
+
+  console.log("[Drift] FRAMEWORK ready!");
+
+  return blobUrl;
+}
+
 
   if (!response.ok) {
     throw new Error("Framework HTTP " + response.status);
