@@ -124,6 +124,7 @@ function setBar(pct, label) {
 window._adClosed = false;
 window._partsReady = false;
 window._unityStarted = false;
+var _frameworkBlobUrl = null;
   
 
 async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
@@ -248,6 +249,26 @@ async function decompressChecked(bytes, mimeType, filename, label) {
   }
 }
 
+  async function fetchBrotliFile(url, mimeType, filename) {
+  var response = await fetch(url, {
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error("Framework HTTP " + response.status);
+  }
+
+  var bytes = new Uint8Array(
+    await response.arrayBuffer()
+  );
+
+  return await decompressChecked(
+    bytes,
+    mimeType,
+    filename,
+    "FRAMEWORK"
+  );
+}
 
 async function preloadParts() {
   try {
