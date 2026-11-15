@@ -160,29 +160,104 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
 }
 
   
-function brotliBlobUrl(uint8, filename){
-  var blob = new Blob([uint8],{type:'application/octet-stream'});
-  return URL.createObjectURL(blob)+'#'+encodeURIComponent(filename);
+
+async function brotliBlobUrl(uint8, mimeType, filename) {
+  var compressedBlob = new Blob([uint8]);
+
+  if (typeof DecompressionStream === "undefined") {
+    throw new Error("Brotli decompression is not supported by this browser.");
+  }
+
+  var decompressedStream = compressedBlob.stream().pipeThrough(
+    new DecompressionStream("brotli")
+  );
+
+  var decompressedBytes = await new Response(
+    decompressedStream
+  ).arrayBuffer();
+
+  var blob = new Blob([decompressedBytes], {
+    type: mimeType
+  });
+
+  return URL.createObjectURL(blob) + "#" + encodeURIComponent(filename);
 }
+
+async function fetchBrotliFile(url, mimeType, filename) {
+  var response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error("Framework HTTP " + response.status);
+  }
+
+  var compressedBytes = new Uint8Array(
+    await response.arrayBuffer()
+  );
+
+  return await brotliBlobUrl(
+    compressedBytes,
+    mimeType,
+    filename
+  );
+}
+
 
 /* Part'ları önceden indir */
+
 async function preloadParts() {
   try {
-    setBar(0,'Data indiriliyor...');
-    var dataBytes = await fetchParts(CDN+'/'+DATA_FILE, DATA_PARTS, 0,  50, 'Data indiriliyor... ');
-    _dataBlobUrl  = brotliBlobUrl(dataBytes, DATA_FILE);
+    setBar(0, "Data indiriliyor...");
 
-    var wasmBytes = await fetchParts(CDN+'/'+WASM_FILE, WASM_PARTS, 50, 90, 'WASM indiriliyor... ');
-    _wasmBlobUrl  = brotliBlobUrl(wasmBytes, WASM_FILE);
+    var dataBytes = await fetchParts(
+      CDN + "/" + DATA_FILE,
+      DATA_PARTS,
+      0,
+      50,
+      "Data indiriliyor... "
+    );
 
-    setBar(90, 'Oyun başlatılıyor...');
+    _dataBlobUrl = await brotliBlobUrl(
+      dataBytes,
+      "application/octet-stream",
+      "TCT_0_3_2_CG32.data"
+    );
+
+    var wasmBytes = await fetchParts(
+      CDN + "/" + WASM_FILE,
+      WASM_PARTS,
+      50,
+      85,
+      "WASM indiriliyor... "
+    );
+
+    _wasmBlobUrl = await brotliBlobUrl(
+      wasmBytes,
+      "application/wasm",
+      "TCT_0_3_2_CG3.wasm"
+    );
+
+    setBar(85, "Framework indiriliyor...");
+
+    _frameworkBlobUrl = await fetchBrotliFile(
+      CDN + "/TCT_0_3_2_CG3.framework.js.br",
+      "application/javascript",
+      "TCT_0_3_2_CG3.framework.js"
+    );
+
+    setBar(90, "Oyun başlatılıyor...");
+
     _partsReady = true;
-    console.log('[Drift] Parts ready, waiting for ad close...');
+
+    console.log("[Drift] All files downloaded and decompressed.");
+
+    tryStartUnity();
+
   } catch(e) {
-    dlStatus.textContent = 'İndirme hatası: ' + e.message;
-    console.error(e);
+    dlStatus.textContent = "İndirme hatası: " + e.message;
+    console.error("[Drift] Preload error:", e);
   }
 }
+
 
 /* SDK init + reklam — reklam kapanınca Unity başlar */
 YaGames.init().then(function(ysdk) {
@@ -200,16 +275,25 @@ YaGames.init().then(function(ysdk) {
 /* Paralel: SDK init + reklam + part indirme aynı anda */
 preloadParts();
 
-function closeAdFunction() {
-  console.log('[Drift] Ad closed');
-  if (_partsReady) {
+
+function tryStartUnity() {
+  if (_adClosed && _partsReady && !_unityStarted) {
+    _unityStarted = true;
+
+    console.log("[Drift] Starting Unity...");
+
     initializeUnity();
-  } else {
-    /* Parts henüz bitmemiş, bitince Unity başlatılacak */
-    var iv = setInterval(function(){
-      if (_partsReady) { clearInterval(iv); initializeUnity(); }
-    }, 200);
   }
+}
+
+function closeAdFunction() {
+  if (_adClosed) return;
+
+  console.log("[Drift] Ad closed");
+
+  _adClosed = true;
+
+  tryStartUnity();
 }
 
 function initializeUnity() {
@@ -228,7 +312,7 @@ function initializeUnity() {
 
 var config = {
   dataUrl:            _dataBlobUrl,
-  frameworkUrl:       CDN + "/TCT_0_3_2_CG3.framework.js.br",
+  frameworkUrl: _frameworkBlobUrl,
   codeUrl:            _wasmBlobUrl,
   streamingAssetsUrl: "StreamingAssets",
 
