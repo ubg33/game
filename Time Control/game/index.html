@@ -120,12 +120,20 @@ function setBar(pct, label) {
   if (dlStatus) dlStatus.textContent = label || '';
 }
 
+var sources = {};
+var sourcesPlayOneShot = {};
+var sdk;
+var MyGameInstance = null;
+
+var _dataBlobUrl = null;
+var _wasmBlobUrl = null;
+var _frameworkBlobUrl = null;
+
 // Global startup flags
 window._adClosed = false;
 window._partsReady = false;
 window._unityStarted = false;
-var _frameworkBlobUrl = null;
-  
+
 
 async function fetchBrotliFile(url, mimeType, filename) {
   console.log("[Drift] Downloading framework...");
@@ -138,13 +146,10 @@ async function fetchBrotliFile(url, mimeType, filename) {
     throw new Error("Framework HTTP " + response.status);
   }
 
-  // Browser already handles HTTP gzip decompression.
   var bytes = await response.arrayBuffer();
 
-  console.log("[Drift] Framework size:", bytes.byteLength);
-
   var preview = new TextDecoder().decode(
-    bytes.slice(0, 30)
+    new Uint8Array(bytes.slice(0, 30))
   );
 
   console.log("[Drift] Framework preview:", preview);
@@ -154,24 +159,6 @@ async function fetchBrotliFile(url, mimeType, filename) {
   }
 
   var blob = new Blob([bytes], {
-    type: "application/javascript"
-  });
-
-  var blobUrl = URL.createObjectURL(blob);
-
-  console.log("[Drift] FRAMEWORK ready!");
-
-  return blobUrl;
-}
-
-
-  if (!response.ok) {
-    throw new Error("Framework HTTP " + response.status);
-  }
-
-  var bytes = await response.arrayBuffer();
-
-  var blob = new Blob([bytes], {
     type: mimeType
   });
 
@@ -179,6 +166,9 @@ async function fetchBrotliFile(url, mimeType, filename) {
 
   return URL.createObjectURL(blob);
 }
+
+
+
 
 async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
   var parts = [];
@@ -254,8 +244,10 @@ var _brotliPromise = null;
 
 
 
+
 async function preloadParts() {
   try {
+    // DOWNLOAD DATA
     setBar(0, "Downloading DATA...");
 
     var dataBytes = await fetchParts(
@@ -268,14 +260,16 @@ async function preloadParts() {
 
     console.log("[Drift] DATA size:", dataBytes.byteLength);
 
-_wasmBlobUrl = URL.createObjectURL(
-  new Blob([wasmBytes], {
-    type: "application/wasm"
-  })
-);
+    // DATA is already decompressed
+    _dataBlobUrl = URL.createObjectURL(
+      new Blob([dataBytes], {
+        type: "application/octet-stream"
+      })
+    );
 
-console.log("[Drift] WASM ready!");
+    console.log("[Drift] DATA ready!");
 
+    // DOWNLOAD WASM
     setBar(50, "Downloading WASM...");
 
     var wasmBytes = await fetchParts(
@@ -288,14 +282,16 @@ console.log("[Drift] WASM ready!");
 
     console.log("[Drift] WASM size:", wasmBytes.byteLength);
 
-// WASM is already decompressed!
-_wasmBlobUrl = URL.createObjectURL(
-  new Blob([wasmBytes], {
-    type: "application/wasm"
-  })
-);
+    // WASM is already decompressed
+    _wasmBlobUrl = URL.createObjectURL(
+      new Blob([wasmBytes], {
+        type: "application/wasm"
+      })
+    );
 
-console.log("[Drift] WASM loaded without Brotli decompression!");
+    console.log("[Drift] WASM ready!");
+
+    // DOWNLOAD FRAMEWORK
     setBar(85, "Downloading framework...");
 
     _frameworkBlobUrl = await fetchBrotliFile(
@@ -304,11 +300,34 @@ console.log("[Drift] WASM loaded without Brotli decompression!");
       "TCT_0_3_2_CG3.framework.js"
     );
 
-    _partsReady = true;
+    // ALL FILES READY
+    window._partsReady = true;
 
     console.log("[Drift] All files ready!");
 
-    tryStartUnity();
+   function tryStartUnity() {
+  if (
+    window._adClosed &&
+    window._partsReady &&
+    !window._unityStarted
+  ) {
+    window._unityStarted = true;
+
+    console.log("[Drift] Starting Unity...");
+
+    initializeUnity();
+  }
+}
+
+function closeAdFunction() {
+  if (window._adClosed) return;
+
+  console.log("[Drift] Ad closed");
+
+  window._adClosed = true;
+
+  tryStartUnity();
+}
 
   } catch (e) {
     console.error("[Drift] Preload error:", e);
