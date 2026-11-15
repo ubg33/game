@@ -126,7 +126,25 @@ window._partsReady = false;
 window._unityStarted = false;
 var _frameworkBlobUrl = null;
   
+async function fetchBrotliFile(url, mimeType, filename) {
+  var response = await fetch(url, {
+    cache: "no-store"
+  });
 
+  if (!response.ok) {
+    throw new Error("Framework HTTP " + response.status);
+  }
+
+  var bytes = await response.arrayBuffer();
+
+  var blob = new Blob([bytes], {
+    type: mimeType
+  });
+
+  console.log("[Drift] FRAMEWORK ready!");
+
+  return URL.createObjectURL(blob);
+}
 
 async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
   var parts = [];
@@ -298,12 +316,13 @@ async function preloadParts() {
 
     console.log("[Drift] DATA size:", dataBytes.byteLength);
 
-_dataBlobUrl = await decompressChecked(
-  dataBytes,
-  "application/octet-stream",
-  "TCT_0_3_2_CG3.data",
-  "DATA"
+_wasmBlobUrl = URL.createObjectURL(
+  new Blob([wasmBytes], {
+    type: "application/wasm"
+  })
 );
+
+console.log("[Drift] WASM ready!");
 
     setBar(50, "Downloading WASM...");
 
@@ -317,13 +336,14 @@ _dataBlobUrl = await decompressChecked(
 
     console.log("[Drift] WASM size:", wasmBytes.byteLength);
 
-_wasmBlobUrl = await decompressChecked(
-  wasmBytes,
-  "application/wasm",
-  "TCT_0_3_2_CG3.wasm",
-  "WASM"
+// WASM is already decompressed!
+_wasmBlobUrl = URL.createObjectURL(
+  new Blob([wasmBytes], {
+    type: "application/wasm"
+  })
 );
 
+console.log("[Drift] WASM loaded without Brotli decompression!");
     setBar(85, "Downloading framework...");
 
     _frameworkBlobUrl = await fetchBrotliFile(
