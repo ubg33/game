@@ -118,7 +118,10 @@ function setBar(pct, label) {
   if (dlStatus) dlStatus.textContent = label || '';
 }
 
-
+// Global startup flags
+window._adClosed = false;
+window._partsReady = false;
+window._unityStarted = false;
 async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
   var parts = [];
 
@@ -161,44 +164,33 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
 
   
 
-async function brotliBlobUrl(uint8, mimeType, filename) {
-  var compressedBlob = new Blob([uint8]);
 
-  if (typeof DecompressionStream === "undefined") {
-    throw new Error("Brotli decompression is not supported by this browser.");
+var _brotliPromise = null;
+
+async function getBrotliDecoder() {
+  if (!_brotliPromise) {
+    _brotliPromise = import(
+      "https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module"
+    ).then(function(module) {
+      return module.default;
+    });
   }
 
-  var decompressedStream = compressedBlob.stream().pipeThrough(
-    new DecompressionStream("brotli")
-  );
+  return await _brotliPromise;
+}
 
-  var decompressedBytes = await new Response(
-    decompressedStream
-  ).arrayBuffer();
+async function brotliBlobUrl(uint8, mimeType, filename) {
+  var brotli = await getBrotliDecoder();
 
+  // Decompress the original Brotli data
+  var decompressedBytes = brotli.decompress(uint8);
+
+  // Create a correctly typed Blob
   var blob = new Blob([decompressedBytes], {
     type: mimeType
   });
 
-  return URL.createObjectURL(blob) + "#" + encodeURIComponent(filename);
-}
-
-async function fetchBrotliFile(url, mimeType, filename) {
-  var response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error("Framework HTTP " + response.status);
-  }
-
-  var compressedBytes = new Uint8Array(
-    await response.arrayBuffer()
-  );
-
-  return await brotliBlobUrl(
-    compressedBytes,
-    mimeType,
-    filename
-  );
+  return URL.createObjectURL(blob);
 }
 
 
@@ -311,19 +303,17 @@ function initializeUnity() {
   }
 
 var config = {
-  dataUrl:            _dataBlobUrl,
+  dataUrl: _dataBlobUrl,
   frameworkUrl: _frameworkBlobUrl,
-  codeUrl:            _wasmBlobUrl,
+  codeUrl: _wasmBlobUrl,
   streamingAssetsUrl: "StreamingAssets",
 
-  // Disable WebAssembly streaming compilation
-  // because the WASM is loaded from a Blob URL.
-  wasmStreaming: false,
-    companyName:        "Drift No Limit",
-    productName:        "Drift No Limit",
-    productVersion:     "90",
-    showBanner:         unityShowBanner
-  };
+  companyName: "Drift No Limit",
+  productName: "Drift No Limit",
+  productVersion: "90",
+
+  showBanner: unityShowBanner
+};
 
   if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
     var meta=document.createElement('meta');
