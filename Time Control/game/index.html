@@ -89,9 +89,11 @@ window.YaGames = { init: function() {
 </script>
 
 <script>
+
 /* ================================================================
-   CDN — değiştir
+   DRIFT NO LIMIT - UNITY LOADER
    ================================================================ */
+
 var CDN = "./Build";
 
 var DATA_FILE = "TCT_0_3_2_CG3.data.br";
@@ -100,75 +102,44 @@ var WASM_FILE = "TCT_0_3_2_CG3.wasm.br";
 var DATA_PARTS = 3;
 var WASM_PARTS = 3;
 
-var sources           = {};
-var sourcesPlayOneShot= {};
-var sdk;
-var MyGameInstance    = null;
-var _dataBlobUrl      = null;
-var _wasmBlobUrl      = null;
-var _partsReady       = false;
-
-var loadingBar    = document.querySelector("#unity-loading-bar");
-var progressFull  = document.querySelector("#unity-progress-bar-full");
-var dlStatus      = document.querySelector("#dl-status");
-
-loadingBar.style.display = "block";
-
-/* DATA 0-50%, WASM 50-90%, Unity 90-100% */
-function setBar(pct, label) {
-  progressFull.style.width = pct.toFixed(1) + '%';
-  if (dlStatus) dlStatus.textContent = label || '';
-}
-
 var sources = {};
 var sourcesPlayOneShot = {};
-var sdk;
+var sdk = null;
 var MyGameInstance = null;
 
 var _dataBlobUrl = null;
 var _wasmBlobUrl = null;
 var _frameworkBlobUrl = null;
 
-// Global startup flags
+// Startup flags
 window._adClosed = false;
 window._partsReady = false;
 window._unityStarted = false;
 
+// Loading elements
+var loadingBar = document.querySelector("#unity-loading-bar");
+var progressFull = document.querySelector("#unity-progress-bar-full");
+var dlStatus = document.querySelector("#dl-status");
 
-async function fetchBrotliFile(url, mimeType, filename) {
-  console.log("[Drift] Downloading framework...");
+loadingBar.style.display = "block";
 
-  var response = await fetch(url, {
-    cache: "no-store"
-  });
 
-  if (!response.ok) {
-    throw new Error("Framework HTTP " + response.status);
+/* ================================================================
+   LOADING BAR
+   ================================================================ */
+
+function setBar(pct, label) {
+  progressFull.style.width = pct.toFixed(1) + "%";
+
+  if (dlStatus) {
+    dlStatus.textContent = label || "";
   }
-
-  var bytes = await response.arrayBuffer();
-
-  var preview = new TextDecoder().decode(
-    new Uint8Array(bytes.slice(0, 30))
-  );
-
-  console.log("[Drift] Framework preview:", preview);
-
-  if (!preview.startsWith("function unityFramework")) {
-    throw new Error("Framework does not look like JavaScript!");
-  }
-
-  var blob = new Blob([bytes], {
-    type: mimeType
-  });
-
-  console.log("[Drift] FRAMEWORK ready!");
-
-  return URL.createObjectURL(blob);
 }
 
 
-
+/* ================================================================
+   DOWNLOAD AND MERGE PARTS
+   ================================================================ */
 
 async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
   var parts = [];
@@ -184,19 +155,11 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
       cache: "no-store"
     });
 
-    // Print server response information
-    console.log("[Drift] HTTP headers:", {
-      part: partName,
-      status: response.status,
-      encoding: response.headers.get("content-encoding"),
-      contentLength: response.headers.get("content-length"),
-      contentType: response.headers.get("content-type"),
-      url: response.url
-    });
-
     if (!response.ok) {
       throw new Error(partName + " HTTP " + response.status);
     }
+
+    console.log("[Drift] Encoding:", response.headers.get("content-encoding"));
 
     var bytes = new Uint8Array(
       await response.arrayBuffer()
@@ -233,20 +196,50 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
 }
 
 
+/* ================================================================
+   DOWNLOAD FRAMEWORK
+   ================================================================ */
 
-  
+async function fetchFrameworkFile(url) {
+  console.log("[Drift] Downloading framework...");
+
+  var response = await fetch(url, {
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error("Framework HTTP " + response.status);
+  }
+
+  var bytes = await response.arrayBuffer();
+
+  var preview = new TextDecoder().decode(
+    new Uint8Array(bytes.slice(0, 30))
+  );
+
+  console.log("[Drift] Framework preview:", preview);
+
+  if (!preview.startsWith("function unityFramework")) {
+    throw new Error("Framework is not valid JavaScript!");
+  }
+
+  var blob = new Blob([bytes], {
+    type: "application/javascript"
+  });
+
+  _frameworkBlobUrl = URL.createObjectURL(blob);
+
+  console.log("[Drift] FRAMEWORK ready!");
+}
 
 
-var _brotliPromise = null;
-
-
-
-
-
-
+/* ================================================================
+   PRELOAD ALL UNITY FILES
+   ================================================================ */
 
 async function preloadParts() {
   try {
+
     // DOWNLOAD DATA
     setBar(0, "Downloading DATA...");
 
@@ -260,7 +253,14 @@ async function preloadParts() {
 
     console.log("[Drift] DATA size:", dataBytes.byteLength);
 
-    // DATA is already decompressed
+    var dataHeader = new TextDecoder().decode(
+      dataBytes.slice(0, 15)
+    );
+
+    if (dataHeader !== "UnityWebData1.0") {
+      throw new Error("Invalid DATA file signature: " + dataHeader);
+    }
+
     _dataBlobUrl = URL.createObjectURL(
       new Blob([dataBytes], {
         type: "application/octet-stream"
@@ -268,6 +268,7 @@ async function preloadParts() {
     );
 
     console.log("[Drift] DATA ready!");
+
 
     // DOWNLOAD WASM
     setBar(50, "Downloading WASM...");
@@ -282,7 +283,15 @@ async function preloadParts() {
 
     console.log("[Drift] WASM size:", wasmBytes.byteLength);
 
-    // WASM is already decompressed
+    if (
+      wasmBytes[0] !== 0 ||
+      wasmBytes[1] !== 97 ||
+      wasmBytes[2] !== 115 ||
+      wasmBytes[3] !== 109
+    ) {
+      throw new Error("Invalid WASM file signature!");
+    }
+
     _wasmBlobUrl = URL.createObjectURL(
       new Blob([wasmBytes], {
         type: "application/wasm"
@@ -291,21 +300,37 @@ async function preloadParts() {
 
     console.log("[Drift] WASM ready!");
 
+
     // DOWNLOAD FRAMEWORK
     setBar(85, "Downloading framework...");
 
-    _frameworkBlobUrl = await fetchBrotliFile(
-      CDN + "/TCT_0_3_2_CG3.framework.js.br",
-      "application/javascript",
-      "TCT_0_3_2_CG3.framework.js"
+    await fetchFrameworkFile(
+      CDN + "/TCT_0_3_2_CG3.framework.js.br"
     );
 
-    // ALL FILES READY
+
+    // EVERYTHING READY
     window._partsReady = true;
 
     console.log("[Drift] All files ready!");
 
-   function tryStartUnity() {
+    setBar(90, "Waiting to start game...");
+
+    tryStartUnity();
+
+  } catch (e) {
+    console.error("[Drift] Preload error:", e);
+
+    dlStatus.textContent = "Download error: " + e.message;
+  }
+}
+
+
+/* ================================================================
+   STARTUP CONTROL
+   ================================================================ */
+
+function tryStartUnity() {
   if (
     window._adClosed &&
     window._partsReady &&
@@ -329,98 +354,169 @@ function closeAdFunction() {
   tryStartUnity();
 }
 
-  } catch (e) {
-    console.error("[Drift] Preload error:", e);
-    dlStatus.textContent = "Download error: " + e.message;
-  }
-}
 
-
-/* SDK init + reklam — reklam kapanınca Unity başlar */
-YaGames.init().then(function(ysdk) {
-  console.log('Yandex SDK initialized');
-  window.ysdk = ysdk;
-  sdk = ysdk;
-
-  sdk.adv.showFullscreenAdv({callbacks:{
-    onClose:   function(){ closeAdFunction(); },
-    onError:   function(){ closeAdFunction(); },
-    onOffline: function(){ closeAdFunction(); }
-  }});
-});
-
-/* Paralel: SDK init + reklam + part indirme aynı anda */
-preloadParts();
-
-
-function tryStartUnity() {
-  if (_adClosed && _partsReady && !_unityStarted) {
-    _unityStarted = true;
-
-    console.log("[Drift] Starting Unity...");
-
-    initializeUnity();
-  }
-}
-
-function closeAdFunction() {
-  if (_adClosed) return;
-
-  console.log("[Drift] Ad closed");
-
-  _adClosed = true;
-
-  tryStartUnity();
-}
+/* ================================================================
+   UNITY INITIALIZATION
+   ================================================================ */
 
 function initializeUnity() {
-  var container     = document.querySelector("#unity-container");
-  var canvas        = document.querySelector("#unity-canvas");
+  var container = document.querySelector("#unity-container");
+  var canvas = document.querySelector("#unity-canvas");
   var warningBanner = document.querySelector("#unity-warning");
 
   function unityShowBanner(msg, type) {
-    function upd(){ warningBanner.style.display = warningBanner.children.length?'block':'none'; }
-    var div=document.createElement('div'); div.innerHTML=msg; warningBanner.appendChild(div);
-    if(type==='error') div.style='background:red;padding:10px;';
-    else { if(type==='warning') div.style='background:yellow;padding:10px;';
-      setTimeout(function(){ warningBanner.removeChild(div); upd(); },5000); }
-    upd();
+    function updateBanner() {
+      warningBanner.style.display =
+        warningBanner.children.length ? "block" : "none";
+    }
+
+    var div = document.createElement("div");
+    div.innerHTML = msg;
+
+    warningBanner.appendChild(div);
+
+    if (type === "error") {
+      div.style = "background:red;padding:10px;";
+    } else {
+      if (type === "warning") {
+        div.style = "background:yellow;padding:10px;";
+      }
+
+      setTimeout(function() {
+        if (div.parentNode === warningBanner) {
+          warningBanner.removeChild(div);
+          updateBanner();
+        }
+      }, 5000);
+    }
+
+    updateBanner();
   }
 
-var config = {
-  dataUrl: _dataBlobUrl,
-  frameworkUrl: _frameworkBlobUrl,
-  codeUrl: _wasmBlobUrl,
-  streamingAssetsUrl: "StreamingAssets",
 
-  companyName: "Drift No Limit",
-  productName: "Drift No Limit",
-  productVersion: "90",
+  var config = {
+    dataUrl: _dataBlobUrl,
+    frameworkUrl: _frameworkBlobUrl,
+    codeUrl: _wasmBlobUrl,
+    streamingAssetsUrl: "StreamingAssets",
 
-  showBanner: unityShowBanner
-};
+    companyName: "Drift No Limit",
+    productName: "Drift No Limit",
+    productVersion: "90",
+
+    showBanner: unityShowBanner
+  };
+
 
   if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-    var meta=document.createElement('meta');
-    meta.name='viewport';
-    meta.content='width=device-width,height=device-height,initial-scale=1.0,user-scalable=no,shrink-to-fit=yes';
-    document.getElementsByTagName('head')[0].appendChild(meta);
-    container.className="unity-mobile";
-  }
-  canvas.style.width="100%"; canvas.style.height="100%";
+    var meta = document.createElement("meta");
 
-  var script=document.createElement("script");
-  script.src=CDN+"/TCT_0_3_2_CG3.loader.js";
-  script.onload=function(){
-    createUnityInstance(canvas, config, function(progress){
-      setBar(90+progress*10, progress<1?'Oyun yükleniyor... '+Math.round(90+progress*10)+'%':'');
-    }).then(function(inst){
-      MyGameInstance = inst;
-      loadingBar.style.display = "none";
-    }).catch(function(msg){ alert(msg); });
+    meta.name = "viewport";
+    meta.content =
+      "width=device-width,height=device-height,initial-scale=1.0,user-scalable=no,shrink-to-fit=yes";
+
+    document.head.appendChild(meta);
+    container.className = "unity-mobile";
+  }
+
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+
+
+  // LOAD UNITY LOADER
+  var script = document.createElement("script");
+
+  script.src = CDN + "/TCT_0_3_2_CG3.loader.js";
+
+  script.onload = function() {
+    console.log("[Drift] Unity loader downloaded!");
+
+    try {
+      if (typeof createUnityInstance !== "function") {
+        throw new Error("createUnityInstance is missing!");
+      }
+
+      createUnityInstance(
+        canvas,
+        config,
+        function(progress) {
+          setBar(
+            90 + progress * 10,
+            progress < 1
+              ? "Game loading... " +
+                Math.round(90 + progress * 10) + "%"
+              : ""
+          );
+        }
+      ).then(function(inst) {
+        MyGameInstance = inst;
+
+        loadingBar.style.display = "none";
+
+        console.log("[Drift] GAME STARTED!");
+
+      }).catch(function(error) {
+        console.error("[Drift] Unity initialization failed:", error);
+
+        dlStatus.textContent = "Unity error: " + error;
+      });
+
+    } catch (error) {
+      console.error("[Drift] Unity loader error:", error);
+      dlStatus.textContent = error.message;
+    }
   };
+
+  script.onerror = function() {
+    console.error("[Drift] Unity loader failed to download!");
+
+    dlStatus.textContent = "Unity loader download failed!";
+  };
+
   document.body.appendChild(script);
 }
+
+
+/* ================================================================
+   YANDEX SDK INITIALIZATION
+   ================================================================ */
+
+YaGames.init().then(function(ysdk) {
+  console.log("[Drift] Yandex SDK initialized");
+
+  window.ysdk = ysdk;
+  sdk = ysdk;
+
+  sdk.adv.showFullscreenAdv({
+    callbacks: {
+      onClose: function() {
+        closeAdFunction();
+      },
+
+      onError: function() {
+        closeAdFunction();
+      },
+
+      onOffline: function() {
+        closeAdFunction();
+      }
+    }
+  });
+
+}).catch(function(error) {
+  console.error("[Drift] SDK initialization failed:", error);
+
+  closeAdFunction();
+});
+
+
+/* ================================================================
+   START DOWNLOADING
+   ================================================================ */
+
+preloadParts();
+
+
 </script>
 </body>
 </html>
