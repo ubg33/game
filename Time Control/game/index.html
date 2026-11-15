@@ -209,7 +209,44 @@ async function brotliBlobUrl(uint8, mimeType, filename) {
 }
 
 
-/* Part'ları önceden indir */
+
+async function decompressChecked(bytes, mimeType, filename, label) {
+  console.log(
+    "[Drift] Decompressing " + label + ":",
+    bytes ? bytes.length : "UNDEFINED",
+    "bytes"
+  );
+
+  if (!bytes || !bytes.length) {
+    throw new Error(label + " has no downloaded data!");
+  }
+
+  console.log(
+    "[Drift] " + label + " first bytes:",
+    Array.from(bytes.slice(0, 8))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join(" ")
+  );
+
+  try {
+    var result = await brotliBlobUrl(
+      bytes,
+      mimeType,
+      filename
+    );
+
+    console.log("[Drift] " + label + " decompressed successfully!");
+
+    return result;
+
+  } catch (error) {
+    console.error("[Drift] " + label + " FAILED:", error);
+
+    throw new Error(
+      label + " Brotli decompression failed: " + error.message
+    );
+  }
+}
 
 
 async function preloadParts() {
@@ -226,11 +263,12 @@ async function preloadParts() {
 
     console.log("[Drift] DATA size:", dataBytes.byteLength);
 
-    _dataBlobUrl = await brotliBlobUrl(
-      dataBytes,
-      "application/octet-stream",
-      "TCT_0_3_2_CG3.data"
-    );
+_dataBlobUrl = await decompressChecked(
+  dataBytes,
+  "application/octet-stream",
+  "TCT_0_3_2_CG3.data",
+  "DATA"
+);
 
     setBar(50, "Downloading WASM...");
 
@@ -244,11 +282,12 @@ async function preloadParts() {
 
     console.log("[Drift] WASM size:", wasmBytes.byteLength);
 
-    _wasmBlobUrl = await brotliBlobUrl(
-      wasmBytes,
-      "application/wasm",
-      "TCT_0_3_2_CG3.wasm"
-    );
+_wasmBlobUrl = await decompressChecked(
+  wasmBytes,
+  "application/wasm",
+  "TCT_0_3_2_CG3.wasm",
+  "WASM"
+);
 
     setBar(85, "Downloading framework...");
 
