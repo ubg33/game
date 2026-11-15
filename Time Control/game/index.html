@@ -438,14 +438,20 @@ function initializeUnity() {
       createUnityInstance(
         canvas,
         config,
-        function(progress) {
-          setBar(
-            90 + progress * 10,
-            progress < 1
-              ? "Game loading... " +
-                Math.round(90 + progress * 10) + "%"
-              : ""
-          );
+function(progress) {
+  console.log(
+    "[Drift] Unity loading progress:",
+    Math.round(progress * 100) + "%"
+  );
+
+  setBar(
+    90 + progress * 10,
+    progress < 1
+      ? "Game loading... " +
+        Math.round(90 + progress * 10) + "%"
+      : ""
+  );
+}
         }
       ).then(function(inst) {
         MyGameInstance = inst;
