@@ -358,6 +358,7 @@ function closeAdFunction() {
    UNITY INITIALIZATION
    ================================================================ */
 
+
 function initializeUnity() {
   var container = document.querySelector("#unity-container");
   var canvas = document.querySelector("#unity-canvas");
@@ -371,7 +372,6 @@ function initializeUnity() {
 
     var div = document.createElement("div");
     div.innerHTML = msg;
-
     warningBanner.appendChild(div);
 
     if (type === "error") {
@@ -392,7 +392,6 @@ function initializeUnity() {
     updateBanner();
   }
 
-
   var config = {
     dataUrl: _dataBlobUrl,
     frameworkUrl: _frameworkBlobUrl,
@@ -406,10 +405,8 @@ function initializeUnity() {
     showBanner: unityShowBanner
   };
 
-
   if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
     var meta = document.createElement("meta");
-
     meta.name = "viewport";
     meta.content =
       "width=device-width,height=device-height,initial-scale=1.0,user-scalable=no,shrink-to-fit=yes";
@@ -421,85 +418,46 @@ function initializeUnity() {
   canvas.style.width = "100%";
   canvas.style.height = "100%";
 
-
-  // LOAD UNITY LOADER
+  // Load Unity loader
   var script = document.createElement("script");
-
   script.src = CDN + "/TCT_0_3_2_CG3.loader.js";
 
+  script.onload = function() {
+    console.log("[Drift] Unity loader downloaded!");
 
-script.onload = function() {
-  console.log("[Drift] Unity loader downloaded!");
-
-  try {
-    if (typeof createUnityInstance !== "function") {
-      throw new Error("createUnityInstance is missing!");
-    }
-
-    createUnityInstance(
-      canvas,
-      config,
-      function(progress) {
-        console.log(
-          "[Drift] Unity loading progress:",
-          Math.round(progress * 100) + "%"
-        );
-
-        setBar(
-          90 + progress * 10,
-          progress < 1
-            ? "Game loading... " +
-              Math.round(90 + progress * 10) + "%"
-            : ""
-        );
+    try {
+      if (typeof createUnityInstance !== "function") {
+        throw new Error("createUnityInstance is missing!");
       }
-    )
-    .then(function(inst) {
-      MyGameInstance = inst;
-      loadingBar.style.display = "none";
-
-      console.log("[Drift] GAME STARTED!");
-
-    })
-    .catch(function(error) {
-      console.error("[Drift] Unity initialization failed:", error);
-      dlStatus.textContent = "Unity error: " + error;
-    });
-
-  } catch (error) {
-    console.error("[Drift] Unity loader error:", error);
-    dlStatus.textContent = error.message;
-  }
-};
-
 
       createUnityInstance(
         canvas,
         config,
-function(progress) {
-  console.log(
-    "[Drift] Unity loading progress:",
-    Math.round(progress * 100) + "%"
-  );
+        function(progress) {
+          console.log(
+            "[Drift] Unity loading progress:",
+            Math.round(progress * 100) + "%"
+          );
 
-  setBar(
-    90 + progress * 10,
-    progress < 1
-      ? "Game loading... " +
-        Math.round(90 + progress * 10) + "%"
-      : ""
-  );
-}
+          setBar(
+            90 + progress * 10,
+            progress < 1
+              ? "Game loading... " +
+                Math.round(90 + progress * 10) + "%"
+              : ""
+          );
         }
       ).then(function(inst) {
         MyGameInstance = inst;
-
         loadingBar.style.display = "none";
 
         console.log("[Drift] GAME STARTED!");
 
       }).catch(function(error) {
-        console.error("[Drift] Unity initialization failed:", error);
+        console.error(
+          "[Drift] Unity initialization failed:",
+          error
+        );
 
         dlStatus.textContent = "Unity error: " + error;
       });
@@ -512,7 +470,6 @@ function(progress) {
 
   script.onerror = function() {
     console.error("[Drift] Unity loader failed to download!");
-
     dlStatus.textContent = "Unity loader download failed!";
   };
 
