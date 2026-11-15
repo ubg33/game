@@ -249,92 +249,10 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
 
 var _brotliPromise = null;
 
-async function getBrotliDecoder() {
-  if (!_brotliPromise) {
-    _brotliPromise = import(
-      "https://unpkg.com/brotli-wasm@3.0.0/index.web.js?module"
-    ).then(function(module) {
-      return module.default;
-    });
-  }
-
-  return await _brotliPromise;
-}
-
-async function brotliBlobUrl(uint8, mimeType, filename) {
-  var brotli = await getBrotliDecoder();
-
-  // Decompress the original Brotli data
-  var decompressedBytes = brotli.decompress(uint8);
-
-  // Create a correctly typed Blob
-  var blob = new Blob([decompressedBytes], {
-    type: mimeType
-  });
-
-  return URL.createObjectURL(blob);
-}
 
 
 
-async function decompressChecked(bytes, mimeType, filename, label) {
-  console.log(
-    "[Drift] Decompressing " + label + ":",
-    bytes ? bytes.length : "UNDEFINED",
-    "bytes"
-  );
 
-  if (!bytes || !bytes.length) {
-    throw new Error(label + " has no downloaded data!");
-  }
-
-  console.log(
-    "[Drift] " + label + " first bytes:",
-    Array.from(bytes.slice(0, 8))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join(" ")
-  );
-
-  try {
-    var result = await brotliBlobUrl(
-      bytes,
-      mimeType,
-      filename
-    );
-
-    console.log("[Drift] " + label + " decompressed successfully!");
-
-    return result;
-
-  } catch (error) {
-    console.error("[Drift] " + label + " FAILED:", error);
-
-    throw new Error(
-      label + " Brotli decompression failed: " + error.message
-    );
-  }
-}
-
-  async function fetchBrotliFile(url, mimeType, filename) {
-  var response = await fetch(url, {
-    cache: "no-store"
-  });
-
-  if (!response.ok) {
-    throw new Error("Framework HTTP " + response.status);
-  }
-
-  var bytes = new Uint8Array(
-    await response.arrayBuffer()
-  );
-
-  return await decompressChecked(
-    bytes,
-    mimeType,
-    filename,
-    "FRAMEWORK"
-  );
-}
 
 async function preloadParts() {
   try {
