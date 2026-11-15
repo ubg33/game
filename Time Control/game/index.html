@@ -227,9 +227,9 @@ async function fetchFrameworkFile(url) {
     type: "application/javascript"
   });
 
-  _frameworkBlobUrl = URL.createObjectURL(blob);
+console.log("[Drift] FRAMEWORK ready!");
 
-  console.log("[Drift] FRAMEWORK ready!");
+return URL.createObjectURL(blob);
 }
 
 
@@ -304,10 +304,9 @@ async function preloadParts() {
     // DOWNLOAD FRAMEWORK
     setBar(85, "Downloading framework...");
 
-    await fetchFrameworkFile(
-      CDN + "/TCT_0_3_2_CG3.framework.js.br"
-    );
-
+_frameworkBlobUrl = await fetchFrameworkFile(
+  CDN + "/TCT_0_3_2_CG3.framework.js.br"
+);
 
     // EVERYTHING READY
     window._partsReady = true;
