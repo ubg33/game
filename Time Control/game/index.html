@@ -127,43 +127,49 @@ window._unityStarted = false;
 var _frameworkBlobUrl = null;
   
 
+
 async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
   var parts = [];
   var total = 0;
 
   for (var i = 1; i <= partCount; i++) {
     var partName = ".part" + String(i).padStart(3, "0");
+    var url = baseUrl + partName;
 
-    console.log("[Drift] Downloading:", baseUrl + partName);
+    console.log("[Drift] Downloading:", url);
 
-    var response = await fetch(baseUrl + partName, {
-      console.log("[Drift] HTTP headers:", partName, {
-  status: response.status,
-  encoding: response.headers.get("content-encoding"),
-  contentLength: response.headers.get("content-length"),
-  contentType: response.headers.get("content-type"),
-  url: response.url
-});
+    var response = await fetch(url, {
       cache: "no-store"
+    });
+
+    // Print server response information
+    console.log("[Drift] HTTP headers:", {
+      part: partName,
+      status: response.status,
+      encoding: response.headers.get("content-encoding"),
+      contentLength: response.headers.get("content-length"),
+      contentType: response.headers.get("content-type"),
+      url: response.url
     });
 
     if (!response.ok) {
       throw new Error(partName + " HTTP " + response.status);
     }
 
-    var bytes = new Uint8Array(await response.arrayBuffer());
+    var bytes = new Uint8Array(
+      await response.arrayBuffer()
+    );
 
     if (bytes.length === 0) {
       throw new Error(partName + " is empty!");
     }
 
+    console.log(
+      "[Drift] " + partName + ": " + bytes.length + " bytes"
+    );
+
     parts.push(bytes);
     total += bytes.length;
-
-    console.log(
-      "[Drift] " + partName + ": " +
-      bytes.length + " bytes"
-    );
 
     setBar(
       barStart + (i / partCount) * (barEnd - barStart),
@@ -181,8 +187,9 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
 
   console.log("[Drift] Merge complete:", merged.length, "bytes");
 
-  return merged; // IMPORTANT!
+  return merged;
 }
+
 
 
   
