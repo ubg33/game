@@ -92,11 +92,13 @@ window.YaGames = { init: function() {
 /* ================================================================
    CDN — değiştir
    ================================================================ */
-var CDN      = "./Build";  /* <-- degistir */
+var CDN = "./Build";
+
 var DATA_FILE = "TCT_0_3_2_CG3.data.br";
 var WASM_FILE = "TCT_0_3_2_CG3.wasm.br";
-var DATA_PARTS = 3;  /* 53.1MB / 8MB = 7 part */
-var WASM_PARTS = 3;  /* 37.0MB / 8MB = 5 part */
+
+var DATA_PARTS = 3;
+var WASM_PARTS = 3;
 
 var sources           = {};
 var sourcesPlayOneShot= {};
@@ -199,7 +201,7 @@ async function brotliBlobUrl(uint8, mimeType, filename) {
 async function preloadParts() {
   try {
     setBar(0, "Data indiriliyor...");
-
+console.log("[Drift] DATA compressed:", dataBytes.length, "bytes");
     var dataBytes = await fetchParts(
       CDN + "/" + DATA_FILE,
       DATA_PARTS,
@@ -213,7 +215,7 @@ async function preloadParts() {
       "application/octet-stream",
       "TCT_0_3_2_CG32.data"
     );
-
+console.log("[Drift] WASM compressed:", wasmBytes.length, "bytes");
     var wasmBytes = await fetchParts(
       CDN + "/" + WASM_FILE,
       WASM_PARTS,
@@ -229,7 +231,7 @@ async function preloadParts() {
     );
 
     setBar(85, "Framework indiriliyor...");
-
+console.log("[Drift] Downloading framework...");
     _frameworkBlobUrl = await fetchBrotliFile(
       CDN + "/TCT_0_3_2_CG3.framework.js.br",
       "application/javascript",
