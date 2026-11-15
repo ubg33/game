@@ -151,7 +151,6 @@ const wasmFile = buildUrl + "FunnyShooter2_Poki.wasm.unityweb";
 const frameworkFile = buildUrl + "FunnyShooter2_Poki.framework.js.unityweb";
 const loaderFile = buildUrl + "FunnyShooter2_Poki.loader.js";
 
-// CHANGE THESE TO MATCH YOUR PART COUNTS
 const DATA_PARTS = 3;
 const WASM_PARTS = 3;
 
@@ -188,12 +187,13 @@ async function fetchPart(baseFile, partNumber, totalParts) {
   const partName = String(partNumber).padStart(3, "0");
   const url = baseFile + ".part" + partName;
 
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
 
   if (!response.ok) {
     throw new Error(
       "Missing part " + partNumber + " of " + totalParts +
-      "\nExpected: " + url
+      "\nExpected: " + url +
+      "\nHTTP status: " + response.status
     );
   }
 
@@ -202,8 +202,7 @@ async function fetchPart(baseFile, partNumber, totalParts) {
 
   if (encoding.includes("br")) {
     throw new Error(
-      "Server is Brotli-decoding the split file. " +
-      "The split chunks must be served as unchanged binary bytes."
+      "GitHub/server Brotli-decoded a split part: " + url
     );
   }
 
@@ -279,6 +278,8 @@ async function loadSplitFile(
     offset += part.byteLength;
   }
 
+  console.log(label + " compressed size:", totalLength);
+
   return joined;
 }
 
@@ -288,7 +289,7 @@ async function loadSplitFile(
 
 async function fetchSingleFile(url) {
 
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
 
   if (!response.ok) {
     throw new Error(
@@ -321,6 +322,47 @@ function makeObjectUrl(bytes, mimeType) {
 }
 
 // ======================================
+// BROTLI DECOMPRESSION WITH DIAGNOSTICS
+// ======================================
+
+function decompressFile(brotli, compressed, label) {
+
+  console.log(
+    label + " compressed bytes:",
+    compressed.length
+  );
+
+  try {
+
+    const result = brotli.decompress(compressed);
+
+    const bytes = new Uint8Array(result);
+
+    console.log(
+      label + " decompressed successfully:",
+      bytes.length,
+      "bytes"
+    );
+
+    if (!bytes.length) {
+      throw new Error("Decompressed file is empty.");
+    }
+
+    return bytes;
+
+  } catch (error) {
+
+    throw new Error(
+      label + " DECOMPRESSION FAILED!\n\n" +
+      "Compressed size: " + compressed.length + " bytes\n" +
+      "Original error: " + error.message +
+      "\n\nCheck whether all three parts were uploaded correctly."
+    );
+
+  }
+}
+
+// ======================================
 // START GAME
 // ======================================
 
@@ -336,15 +378,25 @@ async function startGame() {
 
     const brotli = await brotliModule.default;
 
-    setProgress(3, "Downloading game files...");
+    setProgress(3, "Downloading DATA parts...");
 
-const dataCompressed = await loadSplitFile(
-  dataFile, 3, "DATA", 3, 25
-);
+    const dataCompressed = await loadSplitFile(
+      dataFile,
+      DATA_PARTS,
+      "DATA",
+      3,
+      25
+    );
 
-const wasmCompressed = await loadSplitFile(
-  wasmFile, 3, "WASM", 25, 65
-);
+    setProgress(25, "Downloading WASM parts...");
+
+    const wasmCompressed = await loadSplitFile(
+      wasmFile,
+      WASM_PARTS,
+      "WASM",
+      25,
+      65
+    );
 
     setProgress(70, "Downloading framework...");
 
@@ -352,24 +404,44 @@ const wasmCompressed = await loadSplitFile(
       frameworkFile
     );
 
-    setProgress(80, "Rebuilding game files...");
+    setProgress(80, "Decompressing DATA...");
 
-    const dataBytes = new Uint8Array(
-      brotli.decompress(dataCompressed)
+    // Test DATA separately
+    const dataBytes = decompressFile(
+      brotli,
+      dataCompressed,
+      "DATA"
     );
 
-    const wasmBytes = new Uint8Array(
-      brotli.decompress(wasmCompressed)
+    setProgress(85, "Decompressing WASM...");
+
+    // Test WASM separately
+    const wasmBytes = decompressFile(
+      brotli,
+      wasmCompressed,
+      "WASM"
     );
 
-    const frameworkBytes =
-      frameworkResult.alreadyDecompressed
-        ? frameworkResult.bytes
-        : new Uint8Array(
-            brotli.decompress(frameworkResult.bytes)
-          );
+    setProgress(88, "Decompressing framework...");
 
-    setProgress(90, "Starting Unity...");
+    // Framework may already be decoded by the server
+    let frameworkBytes;
+
+    if (frameworkResult.alreadyDecompressed) {
+
+      frameworkBytes = frameworkResult.bytes;
+
+    } else {
+
+      frameworkBytes = decompressFile(
+        brotli,
+        frameworkResult.bytes,
+        "FRAMEWORK"
+      );
+
+    }
+
+    setProgress(91, "Starting Unity...");
 
     const config = {
 
@@ -408,7 +480,7 @@ const wasmCompressed = await loadSplitFile(
       (progress) => {
 
         setProgress(
-          90 + progress * 10,
+          91 + progress * 9,
           "Starting game... " +
           Math.round(progress * 100) + "%"
         );
@@ -441,6 +513,8 @@ const wasmCompressed = await loadSplitFile(
         ? error.message
         : String(error)
     );
+
+    console.error("GAME LOADING ERROR:", error);
 
   }
 }
