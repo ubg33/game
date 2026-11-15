@@ -1,42 +1,576 @@
+
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-	<meta charset="utf-8">
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<title>Funny Shooter 2 </title>
-	<meta name="robots" content="noindex,nofollow" />
-	<script>
-		window.config = {
-		loader: 'unity-2020',
-		debug: false,
-		maxRatio: 16 / 9,
-		minRatio: 9 / 16,
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Funny Shooter 2</title>
+<meta name="robots" content="noindex,nofollow">
 
-		title: 'Funny Shooter 2',
-		thumbnail: '894abba63a6b23fed823f404831f444f.jpeg',
-		numScreenshots:  4 ,
+<style>
+* { box-sizing: border-box; }
 
-		unityVersion: '2020.3.37f1',
-		unityWebglBuildUrl: '',
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #000;
+  font-family: Arial, sans-serif;
+}
 
-		fileSize:  33 ,
-		cachedDecompressedFileSizes: {
-			'FunnyShooter2_Poki.data.unityweb':  29010101 ,
-			'FunnyShooter2_Poki.framework.js.unityweb':  74477 ,
-			'FunnyShooter2_Poki.loader.js':  110821 ,
-			'FunnyShooter2_Poki.wasm.unityweb':  4670173 ,
-		},
-		"metadata": {"poki_template_version":1,"background_color":"#FFFFFF","background_filename":"FunnyShooter2_Poki.jpg","code_filename":"FunnyShooter2_Poki.wasm.unityweb","company_name":"GoGoMan","data_filename":"FunnyShooter2_Poki.data.unityweb","decompression_fallback":"Brotli","development_player":"false","framework_filename":"FunnyShooter2_Poki.framework.js.unityweb","height":"600","loader_filename":"FunnyShooter2_Poki.loader.js","product_name":"Funny Shooter 2","product_version":"1.0.1","splash_screen_style":"Dark","total_memory":"268435456","unity_version":"2020.3.37f1","use_data_caching":"true","use_threads":"false","use_wasm":"true","use_webgl_1_0":"true","use_webgl_2_0":"true","width":"960"}
-	};
-	</script>
-	<!-- will be copied to the resulting head //-->
+#game-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  background: #000;
+  overflow: hidden;
+}
+
+#unity-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000;
+  outline: none;
+}
+
+#loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: white;
+  background: #000;
+  z-index: 2;
+}
+
+#loading.hidden { display: none; }
+
+#loading-title {
+  font-size: clamp(20px, 4vw, 32px);
+  font-weight: 700;
+  text-align: center;
+}
+
+#progress-track {
+  width: min(420px, 75vw);
+  height: 10px;
+  border-radius: 20px;
+  background: #333;
+  overflow: hidden;
+}
+
+#progress-bar {
+  width: 0%;
+  height: 100%;
+  background: #19a7ff;
+  transition: width .15s;
+}
+
+#status {
+  color: #bbb;
+  font-size: 13px;
+  text-align: center;
+  max-width: 85vw;
+}
+
+#fullscreen {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  border: 1px solid #ffffff55;
+  border-radius: 8px;
+  background: #111c;
+  color: white;
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#error {
+  display: none;
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 5%;
+  z-index: 4;
+  padding: 12px;
+  color: white;
+  background: #8b0000;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  font-size: 13px;
+  max-height: 45%;
+  overflow: auto;
+}
+</style>
 </head>
 
 <body>
-	<script src="/master-loader.js"></script>
-	<!-- will be copied to the resulting body //-->
-	<!-- will also be copied to the resulting body //-->
-</body>
 
+<main id="game-container">
+
+<canvas id="unity-canvas" tabindex="-1"></canvas>
+
+<div id="loading">
+  <div id="loading-title">Loading Funny Shooter 2...</div>
+  <div id="progress-track">
+    <div id="progress-bar"></div>
+  </div>
+  <div id="status">Starting game...</div>
+</div>
+
+<button id="fullscreen" type="button">⛶ Fullscreen</button>
+<div id="error"></div>
+
+</main>
+
+<script>
+"use strict";
+
+const canvas = document.getElementById("unity-canvas");
+const loading = document.getElementById("loading");
+const progressBar = document.getElementById("progress-bar");
+const statusText = document.getElementById("status");
+const errorBox = document.getElementById("error");
+
+// ======================================
+// GAME CONFIGURATION
+// ======================================
+
+const buildUrl = "./Build/";
+
+const dataFile = buildUrl + "FunnyShooter2_Poki.data.unityweb";
+const wasmFile = buildUrl + "FunnyShooter2_Poki.wasm.unityweb";
+const frameworkFile = buildUrl + "FunnyShooter2_Poki.framework.js.unityweb";
+const loaderFile = buildUrl + "FunnyShooter2_Poki.loader.js";
+
+// CHANGE THESE TO MATCH YOUR PART COUNTS
+const DATA_PARTS = 3;
+const WASM_PARTS = 3;
+
+const PARTS_PER_BATCH = 8;
+
+let unityInstance = null;
+const temporaryUrls = [];
+
+// ======================================
+// LOADING FUNCTIONS
+// ======================================
+
+function setProgress(percent, message) {
+  progressBar.style.width =
+    Math.max(0, Math.min(100, percent)) + "%";
+
+  statusText.textContent = message;
+}
+
+function showError(message) {
+  errorBox.style.display = "block";
+  errorBox.textContent =
+    "The game could not be loaded.\n\n" + message;
+
+  statusText.textContent = "Loading failed.";
+}
+
+// ======================================
+// DOWNLOAD SPLIT FILES
+// ======================================
+
+async function fetchPart(baseFile, partNumber, totalParts) {
+
+  const partName = String(partNumber).padStart(3, "0");
+  const url = baseFile + ".part" + partName;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(
+      "Missing part " + partNumber + " of " + totalParts +
+      "\nExpected: " + url
+    );
+  }
+
+  const encoding =
+    (response.headers.get("Content-Encoding") || "").toLowerCase();
+
+  if (encoding.includes("br")) {
+    throw new Error(
+      "Server is Brotli-decoding the split file. " +
+      "The split chunks must be served as unchanged binary bytes."
+    );
+  }
+
+  const bytes = new Uint8Array(await response.arrayBuffer());
+
+  if (!bytes.length) {
+    throw new Error("Empty part: " + url);
+  }
+
+  return bytes;
+}
+
+async function loadSplitFile(
+  baseFile,
+  partCount,
+  label,
+  progressStart,
+  progressEnd
+) {
+
+  const parts = new Array(partCount);
+  let finished = 0;
+
+  for (
+    let start = 1;
+    start <= partCount;
+    start += PARTS_PER_BATCH
+  ) {
+
+    const end = Math.min(
+      start + PARTS_PER_BATCH - 1,
+      partCount
+    );
+
+    const batch = [];
+
+    for (let part = start; part <= end; part++) {
+      batch.push(
+        fetchPart(baseFile, part, partCount)
+          .then(bytes => ({ part, bytes }))
+      );
+    }
+
+    const results = await Promise.all(batch);
+
+    for (const result of results) {
+      parts[result.part - 1] = result.bytes;
+      finished++;
+    }
+
+    const fraction = finished / partCount;
+
+    setProgress(
+      progressStart +
+      fraction * (progressEnd - progressStart),
+
+      "Downloading " + label + ": " +
+      finished + "/" + partCount
+    );
+  }
+
+  const totalLength = parts.reduce(
+    (sum, part) => sum + part.byteLength,
+    0
+  );
+
+  const joined = new Uint8Array(totalLength);
+
+  let offset = 0;
+
+  for (const part of parts) {
+    joined.set(part, offset);
+    offset += part.byteLength;
+  }
+
+  return joined;
+}
+
+// ======================================
+// SINGLE FILE DOWNLOAD
+// ======================================
+
+async function fetchSingleFile(url) {
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(
+      "Could not fetch " + url +
+      " (HTTP " + response.status + ")"
+    );
+  }
+
+  return {
+    bytes: new Uint8Array(await response.arrayBuffer()),
+    alreadyDecompressed:
+      (response.headers.get("Content-Encoding") || "")
+        .toLowerCase().includes("br")
+  };
+}
+
+// ======================================
+// BLOB URL
+// ======================================
+
+function makeObjectUrl(bytes, mimeType) {
+
+  const url = URL.createObjectURL(
+    new Blob([bytes], { type: mimeType })
+  );
+
+  temporaryUrls.push(url);
+
+  return url;
+}
+
+// ======================================
+// START GAME
+// ======================================
+
+async function startGame() {
+
+  try {
+
+    setProgress(1, "Loading Brotli decompressor...");
+
+    const brotliModule = await import(
+      "https://unpkg.com/brotli-wasm@3.0.1/index.web.js?module"
+    );
+
+    const brotli = await brotliModule.default;
+
+    setProgress(3, "Downloading game files...");
+
+    const dataCompressed = await loadSplitFile(
+      dataFile,
+      DATA_PARTS,
+      "DATA",
+      3,
+      25
+    );
+
+    const wasmCompressed = await loadSplitFile(
+      wasmFile,
+      WASM_PARTS,
+      "WASM",
+      25,
+      65
+    );
+
+    setProgress(70, "Downloading framework...");
+
+    const frameworkResult = await fetchSingleFile(
+      frameworkFile
+    );
+
+    setProgress(80, "Rebuilding game files...");
+
+    const dataBytes = new Uint8Array(
+      brotli.decompress(dataCompressed)
+    );
+
+    const wasmBytes = new Uint8Array(
+      brotli.decompress(wasmCompressed)
+    );
+
+    const frameworkBytes =
+      frameworkResult.alreadyDecompressed
+        ? frameworkResult.bytes
+        : new Uint8Array(
+            brotli.decompress(frameworkResult.bytes)
+          );
+
+    setProgress(90, "Starting Unity...");
+
+    const config = {
+
+      dataUrl: makeObjectUrl(
+        dataBytes,
+        "application/octet-stream"
+      ),
+
+      frameworkUrl: makeObjectUrl(
+        frameworkBytes,
+        "application/javascript"
+      ),
+
+      codeUrl: makeObjectUrl(
+        wasmBytes,
+        "application/wasm"
+      ),
+
+      streamingAssetsUrl: "StreamingAssets",
+
+      companyName: "GoGoMan",
+      productName: "Funny Shooter 2",
+      productVersion: "1.0.1"
+
+    };
+
+    if (typeof createUnityInstance !== "function") {
+      throw new Error(
+        "Unity loader loaded, but createUnityInstance was not found."
+      );
+    }
+
+    createUnityInstance(
+      canvas,
+      config,
+      (progress) => {
+
+        setProgress(
+          90 + progress * 10,
+          "Starting game... " +
+          Math.round(progress * 100) + "%"
+        );
+
+      }
+
+    ).then((instance) => {
+
+      unityInstance = instance;
+      window.unityInstance = instance;
+
+      loading.classList.add("hidden");
+
+      resizeGame();
+
+    }).catch((error) => {
+
+      showError(
+        error && error.message
+          ? error.message
+          : String(error)
+      );
+
+    });
+
+  } catch (error) {
+
+    showError(
+      error && error.message
+        ? error.message
+        : String(error)
+    );
+
+  }
+}
+
+// ======================================
+// UNITY LOADER
+// ======================================
+
+if (location.protocol === "file:") {
+
+  showError(
+    "Do not open this HTML file directly.\n\n" +
+    "Run a local HTTP server instead."
+  );
+
+} else {
+
+  const loader = document.createElement("script");
+
+  loader.src = loaderFile;
+
+  loader.onload = startGame;
+
+  loader.onerror = () => {
+
+    showError(
+      "Could not load Unity loader:\n" +
+      loaderFile
+    );
+
+  };
+
+  document.head.appendChild(loader);
+
+}
+
+// ======================================
+// RESIZE
+// ======================================
+
+function resizeGame() {
+
+  const ratio = Math.min(
+    window.devicePixelRatio || 1,
+    2
+  );
+
+  canvas.width = Math.round(
+    canvas.clientWidth * ratio
+  );
+
+  canvas.height = Math.round(
+    canvas.clientHeight * ratio
+  );
+
+}
+
+window.addEventListener("resize", resizeGame);
+
+window.addEventListener("orientationchange", () => {
+  setTimeout(resizeGame, 150);
+});
+
+// ======================================
+// FULLSCREEN
+// ======================================
+
+document.getElementById("fullscreen")
+.addEventListener("click", async () => {
+
+  try {
+
+    const target = document.getElementById("game-container");
+
+    if (!document.fullscreenElement) {
+
+      await (
+        target.requestFullscreen
+          ? target.requestFullscreen()
+          : canvas.requestFullscreen()
+      );
+
+    } else {
+
+      await document.exitFullscreen();
+
+    }
+
+  } catch (error) {
+
+    showError(
+      "Fullscreen error: " + error.message
+    );
+
+  }
+
+});
+
+document.addEventListener("fullscreenchange", () => {
+
+  document.getElementById("fullscreen").textContent =
+    document.fullscreenElement
+      ? "✕ Exit fullscreen"
+      : "⛶ Fullscreen";
+
+  setTimeout(resizeGame, 100);
+
+});
+
+// ======================================
+// CLEANUP
+// ======================================
+
+window.addEventListener("beforeunload", () => {
+
+  for (const url of temporaryUrls) {
+    URL.revokeObjectURL(url);
+  }
+
+});
+
+</script>
+
+</body>
 </html>
