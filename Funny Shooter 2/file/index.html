@@ -338,21 +338,13 @@ async function startGame() {
 
     setProgress(3, "Downloading game files...");
 
-    const dataCompressed = await loadSplitFile(
-      dataFile,
-      DATA_PARTS,
-      "DATA",
-      3,
-      25
-    );
+const dataCompressed = await loadSplitFile(
+  dataFile, 3, "DATA", 3, 25
+);
 
-    const wasmCompressed = await loadSplitFile(
-      wasmFile,
-      WASM_PARTS,
-      "WASM",
-      25,
-      65
-    );
+const wasmCompressed = await loadSplitFile(
+  wasmFile, 3, "WASM", 25, 65
+);
 
     setProgress(70, "Downloading framework...");
 
