@@ -137,6 +137,13 @@ async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
     console.log("[Drift] Downloading:", baseUrl + partName);
 
     var response = await fetch(baseUrl + partName, {
+      console.log("[Drift] HTTP headers:", partName, {
+  status: response.status,
+  encoding: response.headers.get("content-encoding"),
+  contentLength: response.headers.get("content-length"),
+  contentType: response.headers.get("content-type"),
+  url: response.url
+});
       cache: "no-store"
     });
 
