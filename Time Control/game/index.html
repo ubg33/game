@@ -124,45 +124,58 @@ function setBar(pct, label) {
 window._adClosed = false;
 window._partsReady = false;
 window._unityStarted = false;
+  
+
 async function fetchParts(baseUrl, partCount, barStart, barEnd, label) {
   var parts = [];
+  var total = 0;
 
   for (var i = 1; i <= partCount; i++) {
-    var partName = '.part' + String(i).padStart(3, '0');
+    var partName = ".part" + String(i).padStart(3, "0");
 
-    setBar(
-      barStart + ((i - 1) / partCount) * (barEnd - barStart),
-      label + partName + ' (' + i + '/' + partCount + ')'
-    );
+    console.log("[Drift] Downloading:", baseUrl + partName);
 
-    var r = await fetch(baseUrl + partName);
+    var response = await fetch(baseUrl + partName, {
+      cache: "no-store"
+    });
 
-    if (!r.ok) {
-      throw new Error(label + partName + ' HTTP ' + r.status);
+    if (!response.ok) {
+      throw new Error(partName + " HTTP " + response.status);
     }
 
-    parts.push(new Uint8Array(await r.arrayBuffer()));
+    var bytes = new Uint8Array(await response.arrayBuffer());
+
+    if (bytes.length === 0) {
+      throw new Error(partName + " is empty!");
+    }
+
+    parts.push(bytes);
+    total += bytes.length;
+
+    console.log(
+      "[Drift] " + partName + ": " +
+      bytes.length + " bytes"
+    );
 
     setBar(
       barStart + (i / partCount) * (barEnd - barStart),
-      label + i + '/' + partCount
+      label + i + "/" + partCount
     );
   }
 
-  var total = parts.reduce(function(s, p) {
-    return s + p.length;
-  }, 0);
-
   var merged = new Uint8Array(total);
-  var off = 0;
+  var offset = 0;
 
   for (var j = 0; j < parts.length; j++) {
-    merged.set(parts[j], off);
-    off += parts[j].length;
+    merged.set(parts[j], offset);
+    offset += parts[j].length;
   }
 
-  return merged;
+  console.log("[Drift] Merge complete:", merged.length, "bytes");
+
+  return merged; // IMPORTANT!
 }
+
 
   
 
@@ -198,31 +211,38 @@ async function brotliBlobUrl(uint8, mimeType, filename) {
 
 /* Part'ları önceden indir */
 
+
 async function preloadParts() {
   try {
-    setBar(0, "Data indiriliyor...");
-console.log("[Drift] DATA compressed:", dataBytes.length, "bytes");
+    setBar(0, "Downloading DATA...");
+
     var dataBytes = await fetchParts(
       CDN + "/" + DATA_FILE,
       DATA_PARTS,
       0,
       50,
-      "Data indiriliyor... "
+      "DATA "
     );
+
+    console.log("[Drift] DATA size:", dataBytes.byteLength);
 
     _dataBlobUrl = await brotliBlobUrl(
       dataBytes,
       "application/octet-stream",
-      "TCT_0_3_2_CG32.data"
+      "TCT_0_3_2_CG3.data"
     );
-console.log("[Drift] WASM compressed:", wasmBytes.length, "bytes");
+
+    setBar(50, "Downloading WASM...");
+
     var wasmBytes = await fetchParts(
       CDN + "/" + WASM_FILE,
       WASM_PARTS,
       50,
       85,
-      "WASM indiriliyor... "
+      "WASM "
     );
+
+    console.log("[Drift] WASM size:", wasmBytes.byteLength);
 
     _wasmBlobUrl = await brotliBlobUrl(
       wasmBytes,
@@ -230,25 +250,23 @@ console.log("[Drift] WASM compressed:", wasmBytes.length, "bytes");
       "TCT_0_3_2_CG3.wasm"
     );
 
-    setBar(85, "Framework indiriliyor...");
-console.log("[Drift] Downloading framework...");
+    setBar(85, "Downloading framework...");
+
     _frameworkBlobUrl = await fetchBrotliFile(
       CDN + "/TCT_0_3_2_CG3.framework.js.br",
       "application/javascript",
       "TCT_0_3_2_CG3.framework.js"
     );
 
-    setBar(90, "Oyun başlatılıyor...");
-
     _partsReady = true;
 
-    console.log("[Drift] All files downloaded and decompressed.");
+    console.log("[Drift] All files ready!");
 
     tryStartUnity();
 
-  } catch(e) {
-    dlStatus.textContent = "İndirme hatası: " + e.message;
+  } catch (e) {
     console.error("[Drift] Preload error:", e);
+    dlStatus.textContent = "Download error: " + e.message;
   }
 }
 
