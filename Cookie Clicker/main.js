@@ -578,7 +578,7 @@ Game.Launch=function()
 	
 	var css=document.createElement('style');
 	css.type='text/css';
-	css.innerHTML='body .icon,body .crate,body .usesIcon{background-image:url(img/icons.png?v='+Game.version+');}';
+	css.innerHTML='body .icon,body .crate,body .usesIcon{background-image:url(IMG/icons.png?v='+Game.version+');}';
 	document.head.appendChild(css);
 	
 	Game.baseSeason='';//halloween, christmas, valentines, fools, easter
@@ -1099,7 +1099,7 @@ Game.Launch=function()
 	{
 		//l('javascriptError').innerHTML='<div style="padding:64px 128px;"><div class="title">Loading...</div></div>';
 		Game.Loader=new Loader();
-		Game.Loader.domain='img/';
+		Game.Loader.domain='IMG/';
 		Game.Loader.loaded=Game.Init;
 		Game.Loader.Load(['filler.png']);
 	}
@@ -1161,7 +1161,7 @@ Game.Launch=function()
 		
 		Game.SaveTo='CookieClickerGame';
 		if (Game.beta) Game.SaveTo='CookieClickerGameBeta';
-		l('versionNumber').innerHTML='v. '+Game.version+'<div id="httpsSwitch" style="cursor:pointer;display:inline-block;background:url(img/'+(Game.https?'lockOn':'lockOff')+'.png);width:16px;height:16px;position:relative;top:4px;left:0px;margin:0px -2px;"></div>'+(Game.beta?' <span style="color:#ff0;">beta</span>':'');
+		l('versionNumber').innerHTML='v. '+Game.version+'<div id="httpsSwitch" style="cursor:pointer;display:inline-block;background:url(IMG/'+(Game.https?'lockOn':'lockOff')+'.png);width:16px;height:16px;position:relative;top:4px;left:0px;margin:0px -2px;"></div>'+(Game.beta?' <span style="color:#ff0;">beta</span>':'');
 		
 		if (Game.beta) {var me=l('linkVersionBeta');me.parentNode.removeChild(me);}
 		else if (Game.version==1.0466) {var me=l('linkVersionOld');me.parentNode.removeChild(me);}
@@ -1693,7 +1693,7 @@ Game.Launch=function()
 				if (Game.heralds==0) str+='There are no heralds at the moment. Please consider <b style="color:#bc3aff;">donating to our Patreon</b>!';
 				else
 				{
-					str+=(Game.heralds==1?'<b style="color:#bc3aff;text-shadow:0px 1px 0px #6d0096;">1 herald</b> is':'<b style="color:#fff;text-shadow:0px 1px 0px #6d0096,0px 0px 6px #bc3aff;">'+Game.heralds+' heralds</b> are')+' selflessly inspiring a boost in production for everyone, resulting in<br><b style="color:#cdaa89;text-shadow:0px 1px 0px #7c4532,0px 0px 6px #7c4532;"><div style="width:16px;height:16px;display:inline-block;vertical-align:middle;background:url(img/money.png);"></div> +'+Game.heralds+'% cookies per second</b>.';
+					str+=(Game.heralds==1?'<b style="color:#bc3aff;text-shadow:0px 1px 0px #6d0096;">1 herald</b> is':'<b style="color:#fff;text-shadow:0px 1px 0px #6d0096,0px 0px 6px #bc3aff;">'+Game.heralds+' heralds</b> are')+' selflessly inspiring a boost in production for everyone, resulting in<br><b style="color:#cdaa89;text-shadow:0px 1px 0px #7c4532,0px 0px 6px #7c4532;"><div style="width:16px;height:16px;display:inline-block;vertical-align:middle;background:url(IMG/money.png);"></div> +'+Game.heralds+'% cookies per second</b>.';
 					str+='<div class="line"></div>';
 					if (Game.ascensionMode==1) str+='You are in a <b>Born again</b> run, and are not currently benefiting from heralds.';
 					else if (Game.Has('Heralds')) str+='You own the <b>Heralds</b> upgrade, and therefore benefit from the production boost.';
@@ -1702,7 +1702,7 @@ Game.Launch=function()
 			}
 			str+='<div class="line"></div><span style="font-size:90%;opacity:0.6;"><b>Heralds</b> are people who have donated to our highest Patreon tier, and are limited to 100.<br>Each herald gives everyone +1% CpS.<br>Heralds benefit everyone playing the game, regardless of whether you donated.</span>';
 			
-			str+='<div style="width:31px;height:39px;background:url(img/heraldFlag.png);position:absolute;top:0px;left:8px;"></div><div style="width:31px;height:39px;background:url(img/heraldFlag.png);position:absolute;top:0px;right:8px;"></div>';
+			str+='<div style="width:31px;height:39px;background:url(IMG/heraldFlag.png);position:absolute;top:0px;left:8px;"></div><div style="width:31px;height:39px;background:url(IMG/heraldFlag.png);position:absolute;top:0px;right:8px;"></div>';
 			
 			return '<div style="padding:8px;width:300px;text-align:center;" class="prompt"><h3>Heralds</h3><div class="block">'+str+'</div></div>';
 		},'this');
@@ -3665,7 +3665,7 @@ Game.Launch=function()
 				{
 					PlaySound('snd/tick.mp3');
 					Game.promptConfirmFunc=func;//bit dumb
-					Game.Prompt('<div class="icon" style="background:url(img/icons.png?v='+Game.version+');float:left;margin-left:-8px;margin-top:-8px;background-position:'+(-29*48)+'px '+(-14*48)+'px;"></div><div style="margin:16px 8px;">Do you want to spend <b>'+Beautify(n)+' lump'+(n!=1?'s':'')+'</b> to '+str+'?</div>',[['Yes','Game.lumps-='+n+';Game.promptConfirmFunc();Game.promptConfirmFunc=0;Game.recalculateGains=1;Game.ClosePrompt();'],'No']);
+					Game.Prompt('<div class="icon" style="background:url(IMG/icons.png?v='+Game.version+');float:left;margin-left:-8px;margin-top:-8px;background-position:'+(-29*48)+'px '+(-14*48)+'px;"></div><div style="margin:16px 8px;">Do you want to spend <b>'+Beautify(n)+' lump'+(n!=1?'s':'')+'</b> to '+str+'?</div>',[['Yes','Game.lumps-='+n+';Game.promptConfirmFunc();Game.promptConfirmFunc=0;Game.recalculateGains=1;Game.ClosePrompt();'],'No']);
 					return false;
 				}
 				else
@@ -4366,15 +4366,15 @@ Game.Launch=function()
 					if (!this.spawned && Game.chimeType==1 && Game.ascensionMode!=1) PlaySound('snd/chime.mp3');
 					
 					//set image
-					var bgPic='img/goldCookie.png';
+					var bgPic='IMG/goldCookie.png';
 					var picX=0;var picY=0;
 					
 					
 					if ((!me.forceObj || !me.forceObj.noWrath) && ((me.forceObj && me.forceObj.wrath) || (Game.elderWrath==1 && Math.random()<1/3) || (Game.elderWrath==2 && Math.random()<2/3) || (Game.elderWrath==3) || (Game.hasGod && Game.hasGod('scorn'))))
 					{
 						me.wrath=1;
-						if (Game.season=='halloween') bgPic='img/spookyCookie.png';
-						else bgPic='img/wrathCookie.png';
+						if (Game.season=='halloween') bgPic='IMG/spookyCookie.png';
+						else bgPic='IMG/wrathCookie.png';
 					}
 					else
 					{
@@ -4383,17 +4383,17 @@ Game.Launch=function()
 					
 					if (Game.season=='valentines')
 					{
-						bgPic='img/hearts.png';
+						bgPic='IMG/hearts.png';
 						picX=Math.floor(Math.random()*8);
 					}
 					else if (Game.season=='fools')
 					{
-						bgPic='img/contract.png';
-						if (me.wrath) bgPic='img/wrathContract.png';
+						bgPic='IMG/contract.png';
+						if (me.wrath) bgPic='IMG/wrathContract.png';
 					}
 					else if (Game.season=='easter')
 					{
-						bgPic='img/bunnies.png';
+						bgPic='IMG/bunnies.png';
 						picX=Math.floor(Math.random()*4);
 						picY=0;
 						if (me.wrath) picY=1;
@@ -4773,7 +4773,7 @@ Game.Launch=function()
 					//me.l.style.top=me.y+'px';
 					me.l.style.width='167px';
 					me.l.style.height='212px';
-					me.l.style.backgroundImage='url(img/frostedReindeer.png)';
+					me.l.style.backgroundImage='url(IMG/frostedReindeer.png)';
 					me.l.style.opacity='0';
 					//me.l.style.transform='rotate('+(Math.random()*60-30)+'deg) scale('+(Math.random()*1+0.25)+')';
 					me.l.style.display='block';
@@ -5666,8 +5666,8 @@ Game.Launch=function()
 					{
 						var milk=Game.Milks[i];
 						milkStr+='<div '+Game.getTooltip(
-						'<div class="prompt" style="text-align:center;padding-bottom:6px;white-space:nowrap;margin:0px;padding-bottom:96px;"><h3 style="margin:6px 32px 0px 32px;">'+milk.name+'</h3><div style="opacity:0.75;font-size:9px;">('+(i==0?'starter milk':('for '+Beautify(i*25)+' achievements'))+')</div><div class="line"></div><div style="width:100%;height:96px;position:absolute;left:0px;bottom:0px;background:url(img/'+milk.pic+'.png);"></div></div>'
-						,'top')+' style="background:url(img/icons.png) '+(-milk.icon[0]*48)+'px '+(-milk.icon[1]*48)+'px;margin:2px 0px;" class="trophy"></div>';
+						'<div class="prompt" style="text-align:center;padding-bottom:6px;white-space:nowrap;margin:0px;padding-bottom:96px;"><h3 style="margin:6px 32px 0px 32px;">'+milk.name+'</h3><div style="opacity:0.75;font-size:9px;">('+(i==0?'starter milk':('for '+Beautify(i*25)+' achievements'))+')</div><div class="line"></div><div style="width:100%;height:96px;position:absolute;left:0px;bottom:0px;background:url(IMG/'+milk.pic+'.png);"></div></div>'
+						,'top')+' style="background:url(IMG/icons.png) '+(-milk.icon[0]*48)+'px '+(-milk.icon[1]*48)+'px;margin:2px 0px;" class="trophy"></div>';
 					}
 				}
 				milkStr+='<div style="clear:both;"></div>';
@@ -5679,8 +5679,8 @@ Game.Launch=function()
 					for (var i=0;i<=Game.santaLevel;i++)
 					{
 						santaStr+='<div '+Game.getTooltip(
-						'<div class="prompt" style="text-align:center;padding-bottom:6px;white-space:nowrap;margin:0px 32px;"><div style="width:96px;height:96px;margin:4px auto;background:url(img/santa.png) '+(-i*96)+'px 0px;filter:drop-shadow(0px 3px 2px #000);-webkit-filter:drop-shadow(0px 3px 2px #000);"></div><div class="line"></div><h3>'+Game.santaLevels[i]+'</h3></div>'
-						,'top')+' style="background:url(img/santa.png) '+(-i*48)+'px 0px;background-size:'+(frames*48)+'px 48px;" class="trophy"></div>';
+						'<div class="prompt" style="text-align:center;padding-bottom:6px;white-space:nowrap;margin:0px 32px;"><div style="width:96px;height:96px;margin:4px auto;background:url(IMG/santa.png) '+(-i*96)+'px 0px;filter:drop-shadow(0px 3px 2px #000);-webkit-filter:drop-shadow(0px 3px 2px #000);"></div><div class="line"></div><h3>'+Game.santaLevels[i]+'</h3></div>'
+						,'top')+' style="background:url(IMG/santa.png) '+(-i*48)+'px 0px;background-size:'+(frames*48)+'px 48px;" class="trophy"></div>';
 					}
 					santaStr+='<div style="clear:both;"></div>';
 				}
@@ -5695,9 +5695,9 @@ Game.Launch=function()
 						{
 							var level=Game.dragonLevels[mainLevels[i]];
 							dragonStr+='<div '+Game.getTooltip(
-							//'<div style="width:96px;height:96px;margin:4px auto;background:url(img/dragon.png?v='+Game.version+') '+(-level.pic*96)+'px 0px;"></div><div class="line"></div><div style="min-width:200px;text-align:center;margin-bottom:6px;">'+level.name+'</div>'
-							'<div class="prompt" style="text-align:center;padding-bottom:6px;white-space:nowrap;margin:0px 32px;"><div style="width:96px;height:96px;margin:4px auto;background:url(img/dragon.png?v='+Game.version+') '+(-level.pic*96)+'px 0px;filter:drop-shadow(0px 3px 2px #000);-webkit-filter:drop-shadow(0px 3px 2px #000);"></div><div class="line"></div><h3>'+level.name+'</h3></div>'
-							,'top')+' style="background:url(img/dragon.png?v='+Game.version+') '+(-level.pic*48)+'px 0px;background-size:'+(frames*48)+'px 48px;" class="trophy"></div>';
+							//'<div style="width:96px;height:96px;margin:4px auto;background:url(IMG/dragon.png?v='+Game.version+') '+(-level.pic*96)+'px 0px;"></div><div class="line"></div><div style="min-width:200px;text-align:center;margin-bottom:6px;">'+level.name+'</div>'
+							'<div class="prompt" style="text-align:center;padding-bottom:6px;white-space:nowrap;margin:0px 32px;"><div style="width:96px;height:96px;margin:4px auto;background:url(IMG/dragon.png?v='+Game.version+') '+(-level.pic*96)+'px 0px;filter:drop-shadow(0px 3px 2px #000);-webkit-filter:drop-shadow(0px 3px 2px #000);"></div><div class="line"></div><h3>'+level.name+'</h3></div>'
+							,'top')+' style="background:url(IMG/dragon.png?v='+Game.version+') '+(-level.pic*48)+'px 0px;background-size:'+(frames*48)+'px 48px;" class="trophy"></div>';
 						}
 					}
 					dragonStr+='<div style="clear:both;"></div>';
@@ -6945,9 +6945,9 @@ Game.Launch=function()
 				iconOff=[iconOff[0]*64,iconOff[1]*64];
 				
 				//me.l.className=classes;
-				//l('productIcon'+me.id).style.backgroundImage='url(img/'+icon+')';
+				//l('productIcon'+me.id).style.backgroundImage='url(IMG/'+icon+')';
 				l('productIcon'+me.id).style.backgroundPosition='-'+icon[0]+'px -'+icon[1]+'px';
-				//l('productIconOff'+me.id).style.backgroundImage='url(img/'+iconOff+')';
+				//l('productIconOff'+me.id).style.backgroundImage='url(IMG/'+iconOff+')';
 				l('productIconOff'+me.id).style.backgroundPosition='-'+iconOff[0]+'px -'+iconOff[1]+'px';
 				l('productName'+me.id).innerHTML=displayName;
 				l('productOwned'+me.id).innerHTML=me.amount?me.amount:'';
@@ -8665,7 +8665,7 @@ Game.Launch=function()
 		Game.NewUpgradeCookie({name:'Violet macarons',desc:'It\'s like spraying perfume into your mouth!',icon:[24,4],require:'Box of macarons',							power:3,price: 9999999999999999999});
 		
 		order=40000;
-		new Game.Upgrade('Magic shenanigans','Cookie production <b>multiplied by 1,000</b>.<q>It\'s magic. I ain\'t gotta explain sh<div style="display:inline-block;background:url(img/money.png);width:16px;height:16px;position:relative;top:4px;left:0px;margin:0px -2px;"></div>t.</q>',7,[17,5]);//debug purposes only
+		new Game.Upgrade('Magic shenanigans','Cookie production <b>multiplied by 1,000</b>.<q>It\'s magic. I ain\'t gotta explain sh<div style="display:inline-block;background:url(IMG/money.png);width:16px;height:16px;position:relative;top:4px;left:0px;margin:0px -2px;"></div>t.</q>',7,[17,5]);//debug purposes only
 		Game.last.pool='debug';
 		
 		
@@ -10470,7 +10470,7 @@ Game.Launch=function()
 		Game.BankAchievement('Are you gonna eat all that?');
 		Game.BankAchievement('We\'re gonna need a bigger bakery');
 		Game.BankAchievement('In the mouth of madness');Game.last.baseDesc+='<q>A cookie is just what we tell each other it is.</q>';Game.last.desc=BeautifyInText(Game.last.baseDesc);
-		Game.BankAchievement('Brought to you by the letter <div style="display:inline-block;background:url(img/money.png);width:16px;height:16px;"></div>');
+		Game.BankAchievement('Brought to you by the letter <div style="display:inline-block;background:url(IMG/money.png);width:16px;height:16px;"></div>');
 	
 	
 		Game.CpsAchievement('A world filled with cookies');
@@ -11930,7 +11930,7 @@ Game.Launch=function()
 				else if (Game.specialTab=='dragon') {pic='dragon.png?v='+Game.version;frame=Game.dragonLevels[Game.dragonLevel].pic;}
 				else {pic='dragon.png?v='+Game.version;frame=4;}
 				
-				var str='<div id="specialPic" style="position:absolute;left:-16px;top:-64px;width:96px;height:96px;background:url(img/'+pic+');background-position:'+(-frame*96)+'px 0px;filter:drop-shadow(0px 3px 2px #000);-webkit-filter:drop-shadow(0px 3px 2px #000);"></div>';
+				var str='<div id="specialPic" style="position:absolute;left:-16px;top:-64px;width:96px;height:96px;background:url(IMG/'+pic+');background-position:'+(-frame*96)+'px 0px;filter:drop-shadow(0px 3px 2px #000);-webkit-filter:drop-shadow(0px 3px 2px #000);"></div>';
 				str+='<div class="close" onclick="PlaySound(\'snd/press.mp3\');Game.ToggleSpecialMenu(0);">x</div>';
 				
 				if (Game.specialTab=='santa')
